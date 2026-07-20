@@ -10,6 +10,7 @@ from openjarvis.zeusex import ZEUSEX_IDENTITY
 from openjarvis.zeusex.diagnostics import diagnose_provider
 from openjarvis.zeusex.engines import EngineSettings, build_engine
 from openjarvis.zeusex.runtime import ZeusRuntime
+from openjarvis.zeusex.setup_assistant import build_setup_plan
 from openjarvis.zeusex.skills import default_registry
 
 _MODES = ["assistant", "system", "vision", "sales", "monitor", "developer"]
@@ -64,6 +65,47 @@ def diagnose() -> None:
     result = diagnose_provider()
     prefix = "OK" if result.ok else "FALHA"
     click.echo(f"[{prefix}] {result.provider}: {result.message}")
+
+
+@zeusex.command("setup-plan")
+@click.option(
+    "--provider",
+    type=click.Choice(["ollama", "openai", "openai-compatible"], case_sensitive=False),
+    required=True,
+)
+@click.option("--model", required=True, help="Modelo que será utilizado.")
+@click.option("--base-url", default="", help="URL alternativa do provedor.")
+@click.option(
+    "--shell",
+    type=click.Choice(["powershell", "cmd", "posix"], case_sensitive=False),
+    default=None,
+    help="Shell para o qual os comandos serão gerados.",
+)
+@click.option(
+    "--api-key-ready",
+    is_flag=True,
+    help="Confirma apenas que uma chave OpenAI está disponível; a chave não é recebida.",
+)
+def setup_plan(
+    provider: str,
+    model: str,
+    base_url: str,
+    shell: str | None,
+    api_key_ready: bool,
+) -> None:
+    """Gera comandos temporários de configuração sem gravar segredos."""
+
+    try:
+        plan = build_setup_plan(
+            provider,
+            model,
+            base_url=base_url,
+            api_key_supplied=api_key_ready,
+            shell=shell,
+        )
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(plan.render())
 
 
 @zeusex.command("prompt")

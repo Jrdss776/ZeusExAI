@@ -17,7 +17,9 @@ from openjarvis.zeusex.voice_backends import (
     VoiceBackendError,
     build_capture_backend,
     build_synthesizer_backend,
+    list_input_devices,
 )
+from openjarvis.zeusex.voice_diagnostics import diagnose_voice
 from openjarvis.zeusex.voice_runtime import VoiceSession
 
 _MODES = ["assistant", "system", "vision", "sales", "monitor", "developer"]
@@ -84,6 +86,40 @@ def voice_status_command() -> None:
     click.echo(voice_status())
 
 
+@voice_group.command("diagnose")
+def voice_diagnose_command() -> None:
+    """Verifica configuração e dependências sem abrir microfone."""
+
+    for item in diagnose_voice():
+        click.echo(f"[{'OK' if item.ok else 'FALHA'}] {item.component}: {item.message}")
+
+
+@voice_group.command("devices")
+def voice_devices_command() -> None:
+    """Lista somente dispositivos com canais de entrada."""
+
+    try:
+        devices = list_input_devices()
+    except VoiceBackendError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if not devices:
+        click.echo("Nenhum dispositivo de entrada disponível.")
+        return
+    table = Table(title="Dispositivos de entrada")
+    table.add_column("ID", style="bold")
+    table.add_column("Nome")
+    table.add_column("Canais")
+    table.add_column("Taxa padrão")
+    for device in devices:
+        table.add_row(
+            str(device["id"]),
+            str(device["name"]),
+            str(device["channels"]),
+            str(device["sample_rate"]),
+        )
+    Console().print(table)
+
+
 @voice_group.command("simulate")
 @click.argument("transcript", nargs=-1, required=True)
 @click.option("--mode", type=click.Choice(_MODES, case_sensitive=False), default="assistant", show_default=True)
@@ -98,6 +134,8 @@ def voice_simulate(transcript: tuple[str, ...], mode: str, enabled: bool) -> Non
         synthesizer_backend="none",
         model=env.model,
         listen_seconds=env.listen_seconds,
+        input_device=env.input_device,
+        preferred_voice=env.preferred_voice,
     )
     turn = VoiceSession(_runtime(), config=config).process_transcript(" ".join(transcript), mode=mode.lower())
     click.echo(turn.response if turn.activated else turn.reason)
@@ -117,9 +155,11 @@ def voice_listen(mode: str, speak: bool) -> None:
             config.capture_backend,
             model_name=config.model,
             duration_seconds=config.listen_seconds,
+            input_device=config.input_device,
         )
         synthesizer = build_synthesizer_backend(
-            config.synthesizer_backend if speak else "none"
+            config.synthesizer_backend if speak else "none",
+            preferred_voice=config.preferred_voice,
         )
     except VoiceBackendError as exc:
         raise click.ClickException(str(exc)) from exc
@@ -130,10 +170,7 @@ def voice_listen(mode: str, speak: bool) -> None:
         capture=capture,
         synthesizer=synthesizer,
     ).listen_once(mode=mode.lower())
-    if turn.activated:
-        click.echo(turn.response or turn.reason)
-    else:
-        click.echo(turn.reason)
+    click.echo(turn.response if turn.activated else turn.reason)
 
 
 @zeusex.command("prompt")

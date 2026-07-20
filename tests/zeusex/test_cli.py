@@ -67,3 +67,27 @@ def test_marketplace_queue_rejects_non_object_json(tmp_path) -> None:
 
     assert result.exit_code != 0
     assert "objeto JSON" in result.output
+
+
+def test_marketplace_analyze360_outputs_json() -> None:
+    payload = (
+        '{"product":{"name":"Produto","marketplace":"shopee",'
+        '"sale_price":"100","product_cost":"40"},'
+        '"attributes":{"Material":"mandioca"}}'
+    )
+    result = CliRunner().invoke(
+        zeusex,
+        [
+            "marketplace",
+            "analyze360",
+            "--payload",
+            payload,
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"profit"' in result.output
+    assert '"advertisement"' in result.output
+    assert '"Material: mandioca"' in result.output

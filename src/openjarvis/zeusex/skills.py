@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from importlib import metadata
 from typing import Any
 
+from openjarvis.zeusex.local_automation import list_local_files, system_information
+
 SkillHandler = Callable[[str], str]
 ENTRY_POINT_GROUP = "zeusex.skills"
 
@@ -19,11 +21,24 @@ class Skill:
     description: str
     handler: SkillHandler
     requires_confirmation: bool = False
+    permissions: tuple[str, ...] = ()
+    source: str = "builtin"
 
     def execute(self, argument: str = "", *, confirmed: bool = False) -> str:
         if self.requires_confirmation and not confirmed:
             return f"Confirmação necessária para executar a skill '{self.name}'."
         return self.handler(argument.strip())
+
+    def manifest(self) -> dict[str, object]:
+        """Expõe metadados auditáveis sem incluir código executável."""
+
+        return {
+            "name": self.name,
+            "description": self.description,
+            "requires_confirmation": self.requires_confirmation,
+            "permissions": list(self.permissions),
+            "source": self.source,
+        }
 
 
 class SkillRegistry:
@@ -83,7 +98,19 @@ def discover_skills(registry: SkillRegistry, *, group: str = ENTRY_POINT_GROUP) 
     selected = entry_points.select(group=group) if hasattr(entry_points, "select") else entry_points.get(group, [])
     for entry_point in selected:
         try:
-            registry.register_many(_coerce_plugin(entry_point.load()))
+            plugin_skills = _coerce_plugin(entry_point.load())
+            tagged = [
+                Skill(
+                    name=skill.name,
+                    description=skill.description,
+                    handler=skill.handler,
+                    requires_confirmation=skill.requires_confirmation,
+                    permissions=skill.permissions,
+                    source=f"plugin:{entry_point.name}",
+                )
+                for skill in plugin_skills
+            ]
+            registry.register_many(tagged)
         except Exception as exc:
             errors.append(f"{entry_point.name}: {type(exc).__name__}")
     return errors
@@ -102,10 +129,28 @@ def default_registry(*, discover_plugins: bool = True) -> SkillRegistry:
     )
     registry.register(
         Skill(
+            name="system-info",
+            description="Mostra informações básicas e não sensíveis do computador.",
+            handler=system_information,
+            permissions=("system.read_basic",),
+        )
+    )
+    registry.register(
+        Skill(
+            name="list-files",
+            description="Lista até 50 itens de um diretório local, sem recursão.",
+            handler=list_local_files,
+            requires_confirmation=True,
+            permissions=("filesystem.read_directory",),
+        )
+    )
+    registry.register(
+        Skill(
             name="system-action",
             description="Ponto reservado para automações sensíveis do sistema.",
             handler=lambda argument: f"Ação autorizada: {argument or 'sem descrição'}",
             requires_confirmation=True,
+            permissions=("system.sensitive_action",),
         )
     )
     if discover_plugins:

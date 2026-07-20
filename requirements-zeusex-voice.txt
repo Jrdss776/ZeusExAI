@@ -1,0 +1,5 @@
+# Dependências opcionais para voz local do ZeusExAI.
+# Instale somente quando desejar usar `jarvis zeusex voice listen`.
+faster-whisper>=1.0
+sounddevice>=0.4
+pyttsx3>=2.90

@@ -9,6 +9,13 @@ from rich.table import Table
 from openjarvis.zeusex import ZEUSEX_IDENTITY
 from openjarvis.zeusex.diagnostics import diagnose_provider
 from openjarvis.zeusex.engines import EngineSettings, build_engine
+from openjarvis.zeusex.marketplace import (
+    PotentialSignals,
+    ProductInput,
+    analyze_potential,
+    analyze_profit,
+    create_advertisement_draft,
+)
 from openjarvis.zeusex.runtime import ZeusRuntime
 from openjarvis.zeusex.setup_assistant import build_setup_plan
 from openjarvis.zeusex.skills import default_registry

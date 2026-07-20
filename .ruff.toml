@@ -1,0 +1,22 @@
+target-version = "py310"
+src = ["src", "tests"]
+
+[lint]
+select = ["E", "F", "I", "W"]
+
+[lint.per-file-ignores]
+"src/openjarvis/evals/datasets/*.py" = ["E501"]
+"src/openjarvis/evals/scorers/*.py" = ["E501"]
+"src/openjarvis/agents/hybrid/**/*.py" = ["E501"]
+"src/openjarvis/agents/research_loop.py" = ["E501"]
+
+# ZeusExAI contains user-facing CLI text, prompts, manifests and test fixtures
+# whose readability is reduced by artificial line wrapping. Import ordering is
+# temporarily relaxed only in the compatibility layer while the fork remains
+# synchronized with the upstream OpenJarvis layout.
+"examples/twitter_bot/slack_preview.py" = ["E501"]
+"src/openjarvis/cli/zeusex_cmd.py" = ["E501"]
+"src/openjarvis/zeusex/*.py" = ["E501", "I001"]
+"src/zeusex/*.py" = ["E501", "I001"]
+"tests/zeusex/*.py" = ["E501", "I001"]
+"tools/pearl-reference-oracle/smoke_test.py" = ["E501"]

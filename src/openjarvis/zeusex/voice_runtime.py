@@ -10,23 +10,17 @@ from openjarvis.zeusex.voice import VoiceConfig, extract_wake_command
 
 
 class SpeechCapture(Protocol):
-    """Contrato para adaptadores opcionais de captura/transcrição."""
-
     def listen(self, *, locale: str) -> str:
         """Retorna uma transcrição de uma única fala."""
 
 
 class SpeechSynthesizer(Protocol):
-    """Contrato para adaptadores opcionais de síntese de voz."""
-
     def speak(self, text: str, *, locale: str) -> None:
         """Reproduz uma resposta em voz."""
 
 
 @dataclass(slots=True)
 class NullSpeechCapture:
-    """Adaptador seguro usado quando não há captura de áudio instalada."""
-
     reason: str = "Nenhum adaptador de captura de áudio foi configurado."
 
     def listen(self, *, locale: str) -> str:
@@ -36,16 +30,12 @@ class NullSpeechCapture:
 
 @dataclass(slots=True)
 class NullSpeechSynthesizer:
-    """Síntese nula: preserva o fluxo sem emitir áudio."""
-
     def speak(self, text: str, *, locale: str) -> None:
         del text, locale
 
 
 @dataclass(frozen=True, slots=True)
 class VoiceTurn:
-    """Resultado auditável de uma interação de voz."""
-
     activated: bool
     command: str | None
     response: str | None
@@ -76,12 +66,18 @@ class VoiceSession:
         command = extract_wake_command(transcript, self.config)
         if command is None:
             return VoiceTurn(False, None, None, False, "Palavra de ativação não detectada.")
-        if not command:
-            response = "Estou ouvindo."
-        else:
-            response = self.runtime.handle(command, mode=mode)
+        response = "Estou ouvindo." if not command else self.runtime.handle(command, mode=mode)
 
-        self.synthesizer.speak(response, locale=self.config.locale)
+        try:
+            self.synthesizer.speak(response, locale=self.config.locale)
+        except Exception as exc:
+            return VoiceTurn(
+                True,
+                command,
+                response,
+                False,
+                f"Resposta processada, mas a síntese falhou: {type(exc).__name__}.",
+            )
         return VoiceTurn(True, command, response, True)
 
     def listen_once(self, *, mode: str = "assistant") -> VoiceTurn:

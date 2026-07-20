@@ -36,6 +36,7 @@ from openjarvis.zeusex.marketplace_listings import (
     NormalizedListing,
     ShopeeAdapter,
 )
+from openjarvis.zeusex.report_store import AnalysisReportStore, SavedAnalysis
 from openjarvis.zeusex.runtime import AIEngine, CallableEngine, DisabledEngine, RuntimeConfig, ZeusRuntime
 from openjarvis.zeusex.skills import ENTRY_POINT_GROUP, Skill, SkillRegistry, default_registry, discover_skills
 from openjarvis.zeusex.voice import VoiceConfig, extract_wake_command, voice_status
@@ -53,6 +54,7 @@ __all__ = [
     "Analysis360Report",
     "AnalysisJob",
     "AnalysisQueue",
+    "AnalysisReportStore",
     "AnalysisWorker",
     "AdvertisementDraft",
     "CallableEngine",
@@ -77,6 +79,7 @@ __all__ = [
     "OpenAICompatibleEngine",
     "ReadOnlyHTTPClient",
     "RuntimeConfig",
+    "SavedAnalysis",
     "Skill",
     "SkillRegistry",
     "ShopeeAdapter",

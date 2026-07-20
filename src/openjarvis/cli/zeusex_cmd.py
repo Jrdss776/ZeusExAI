@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import json
+
 import click
 from rich.console import Console
 from rich.table import Table
 
 from openjarvis.zeusex import ZEUSEX_IDENTITY
+from openjarvis.zeusex.analysis_queue import AnalysisQueue
+from openjarvis.zeusex.analysis_worker import AnalysisWorker
 from openjarvis.zeusex.diagnostics import diagnose_provider
 from openjarvis.zeusex.engines import EngineSettings, build_engine
+from openjarvis.zeusex.marketplace_http import (
+    MarketplaceHTTPError,
+    MercadoLivreReadClient,
+)
 from openjarvis.zeusex.marketplace import (
     PotentialSignals,
     ProductInput,
@@ -16,7 +24,7 @@ from openjarvis.zeusex.marketplace import (
     analyze_profit,
     create_advertisement_draft,
 )
-from openjarvis.zeusex.runtime import ZeusRuntime
+from openjarvis.zeusex.runtime import RuntimeConfig, ZeusRuntime
 from openjarvis.zeusex.setup_assistant import build_setup_plan
 from openjarvis.zeusex.skills import default_registry
 from openjarvis.zeusex.voice import VoiceConfig, voice_status
@@ -381,6 +389,108 @@ def marketplace_draft(name: str, marketplace: str, attributes: tuple[str, ...]) 
     for bullet in draft.bullets:
         click.echo(f"- {bullet}")
     click.echo(f"Descrição: {draft.description}")
+
+
+def _analysis_queue() -> AnalysisQueue:
+    return AnalysisQueue(RuntimeConfig.from_env().data_dir / "marketplace-queue.db")
+
+
+@marketplace_group.command("fetch-ml")
+@click.argument("listing_id")
+def marketplace_fetch_ml(listing_id: str) -> None:
+    """Consulta um anúncio público do Mercado Livre sem alterá-lo."""
+
+    try:
+        listing = MercadoLivreReadClient.create().fetch_listing(listing_id)
+    except (ValueError, MarketplaceHTTPError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"ID: {listing.listing_id}")
+    click.echo(f"Título: {listing.title}")
+    click.echo(f"Preço: R$ {listing.price}")
+    click.echo(
+        f"Vendas informadas: {listing.sold_count}"
+        if listing.sold_count is not None
+        else "Vendas informadas: desconhecidas"
+    )
+    click.echo(f"URL: {listing.url or 'não informada'}")
+
+
+@marketplace_group.group("queue", help="Gerencia a fila local de análises comerciais.")
+def marketplace_queue_group() -> None:
+    """Fila persistente; nenhum comando publica anúncios."""
+
+
+@marketplace_queue_group.command("add")
+@click.option(
+    "--marketplace",
+    type=click.Choice(["shopee", "mercado_livre"], case_sensitive=False),
+    required=True,
+)
+@click.option("--payload", required=True, help="Objeto JSON com os dados da consulta.")
+def marketplace_queue_add(marketplace: str, payload: str) -> None:
+    try:
+        decoded = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise click.ClickException("O payload precisa ser um objeto JSON válido.") from exc
+    if not isinstance(decoded, dict):
+        raise click.ClickException("O payload precisa ser um objeto JSON.")
+    job = _analysis_queue().enqueue(marketplace, decoded)
+    click.echo(f"Trabalho {job.id} adicionado: {job.marketplace} — {job.status}.")
+
+
+@marketplace_queue_group.command("list")
+@click.option(
+    "--status",
+    type=click.Choice(["queued", "processing", "completed", "failed"]),
+    default=None,
+)
+@click.option("--limit", type=click.IntRange(1, 1000), default=100, show_default=True)
+def marketplace_queue_list(status: str | None, limit: int) -> None:
+    jobs = _analysis_queue().list(status=status, limit=limit)
+    if not jobs:
+        click.echo("Fila vazia.")
+        return
+    table = Table(title="Fila comercial do ZeusEXai")
+    table.add_column("ID", style="bold")
+    table.add_column("Marketplace")
+    table.add_column("Status")
+    table.add_column("Tentativas")
+    table.add_column("Erro")
+    for job in jobs:
+        table.add_row(
+            str(job.id),
+            job.marketplace,
+            job.status,
+            str(job.attempts),
+            job.error or "",
+        )
+    Console().print(table)
+
+
+@marketplace_queue_group.command("run-one")
+def marketplace_queue_run_one() -> None:
+    """Processa um trabalho Mercado Livre; outros ficam em falha controlada."""
+
+    client = MercadoLivreReadClient.create()
+
+    def handle_mercado_livre(payload: dict[str, object]) -> object:
+        listing_id = str(payload.get("listing_id") or payload.get("id") or "")
+        if not listing_id:
+            raise ValueError("Informe listing_id ou id.")
+        return client.fetch_listing(listing_id)
+
+    outcome = AnalysisWorker(
+        _analysis_queue(),
+        {"mercado_livre": handle_mercado_livre},
+    ).run_once()
+    if not outcome.processed or outcome.job is None:
+        click.echo("Fila vazia.")
+        return
+    click.echo(
+        f"Trabalho {outcome.job.id}: {outcome.job.status}"
+        + (f" — {outcome.job.error}" if outcome.job.error else "")
+        + "."
+    )
 
 
 __all__ = ["zeusex"]

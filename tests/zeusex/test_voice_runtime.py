@@ -60,7 +60,7 @@ def test_voice_session_preserves_explicit_confirmation_command(tmp_path) -> None
     turn = session.process_transcript("Zeus confirmar-skill open-app unknown-app")
 
     assert turn.activated is True
-    assert "não permitido" in (turn.response or "").lower()
+    assert "não autorizado" in (turn.response or "").lower()
 
 
 def test_listen_once_uses_capture_and_synthesizer(tmp_path) -> None:

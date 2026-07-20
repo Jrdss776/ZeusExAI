@@ -263,4 +263,117 @@ def skill_run(name: str, argument: tuple[str, ...], confirm: bool) -> None:
     click.echo(default_registry().execute(name, " ".join(argument), confirmed=confirm))
 
 
+@zeusex.group("marketplace", help="Analisa produtos e cria rascunhos comerciais sem publicar.")
+def marketplace_group() -> None:
+    """Ferramentas locais da Fase 14 para Shopee e Mercado Livre."""
+
+
+@marketplace_group.command("profit")
+@click.option("--name", required=True)
+@click.option(
+    "--marketplace",
+    type=click.Choice(["shopee", "mercado_livre"], case_sensitive=False),
+    required=True,
+)
+@click.option("--price", required=True)
+@click.option("--cost", required=True)
+@click.option("--fee-percent", default="0", show_default=True)
+@click.option("--fixed-fee", default="0", show_default=True)
+@click.option("--shipping", default="0", show_default=True)
+@click.option("--tax-percent", default="0", show_default=True)
+def marketplace_profit(
+    name: str,
+    marketplace: str,
+    price: str,
+    cost: str,
+    fee_percent: str,
+    fixed_fee: str,
+    shipping: str,
+    tax_percent: str,
+) -> None:
+    """Calcula margem, lucro, ROI e preço de equilíbrio."""
+
+    try:
+        product = ProductInput(
+            name=name,
+            marketplace=marketplace,
+            sale_price=price,
+            product_cost=cost,
+            marketplace_fee_percent=fee_percent,
+            fixed_fee=fixed_fee,
+            shipping_cost=shipping,
+            tax_percent=tax_percent,
+        )
+        result = analyze_profit(product)
+    except (ValueError, ArithmeticError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    table = Table(title=f"Análise comercial — {result.product.name}")
+    table.add_column("Indicador", style="bold")
+    table.add_column("Resultado")
+    table.add_row("Receita", f"R$ {result.revenue}")
+    table.add_row("Taxa do marketplace", f"R$ {result.marketplace_fee}")
+    table.add_row("Impostos", f"R$ {result.taxes}")
+    table.add_row("Custos totais", f"R$ {result.total_cost}")
+    table.add_row("Lucro", f"R$ {result.profit}")
+    table.add_row("Margem", f"{result.margin_percent}%")
+    table.add_row("ROI", f"{result.roi_percent}%")
+    table.add_row("Preço de equilíbrio", f"R$ {result.break_even_price}")
+    Console().print(table)
+
+
+@marketplace_group.command("potential")
+@click.option("--demand", required=True)
+@click.option("--competition", required=True)
+@click.option("--margin", required=True)
+@click.option("--listing-quality", required=True)
+def marketplace_potential(
+    demand: str,
+    competition: str,
+    margin: str,
+    listing_quality: str,
+) -> None:
+    """Pontua potencial com sinais informados, todos entre 0 e 100."""
+
+    try:
+        result = analyze_potential(
+            PotentialSignals(
+                demand=demand,
+                competition=competition,
+                margin=margin,
+                listing_quality=listing_quality,
+            )
+        )
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Potencial: {result.score}/100 — {result.classification}.")
+
+
+@marketplace_group.command("draft")
+@click.option("--name", required=True)
+@click.option(
+    "--marketplace",
+    type=click.Choice(["shopee", "mercado_livre"], case_sensitive=False),
+    required=True,
+)
+@click.option("--attribute", "attributes", multiple=True, help="Fato no formato chave=valor.")
+def marketplace_draft(name: str, marketplace: str, attributes: tuple[str, ...]) -> None:
+    """Gera um rascunho local; não publica nem completa fatos ausentes."""
+
+    facts: dict[str, str] = {}
+    for attribute in attributes:
+        key, separator, value = attribute.partition("=")
+        if not separator or not key.strip() or not value.strip():
+            raise click.ClickException("Use --attribute no formato chave=valor.")
+        facts[key.strip()] = value.strip()
+    try:
+        draft = create_advertisement_draft(name, facts, marketplace=marketplace)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Título: {draft.title}")
+    for bullet in draft.bullets:
+        click.echo(f"- {bullet}")
+    click.echo(f"Descrição: {draft.description}")
+
+
 __all__ = ["zeusex"]

@@ -35,6 +35,7 @@ jobs:
         run: uv sync --locked --group dev
 
       - name: Apply Ruff fixes and formatting
+        continue-on-error: true
         run: |
           files=(
             examples/twitter_bot/slack_preview.py
@@ -68,6 +69,7 @@ jobs:
           uv run ruff check "${files[@]}" || true
 
       - name: Commit formatted files
+        if: always()
         run: |
           if git diff --quiet; then
             echo "No formatting changes required."

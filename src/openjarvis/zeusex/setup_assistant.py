@@ -39,6 +39,10 @@ def _quote(value: str) -> str:
     return shlex.quote(value)
 
 
+def _powershell_quote(value: str) -> str:
+    return value.replace("`", "``").replace('"', '`"')
+
+
 def build_setup_plan(
     provider: str,
     model: str,
@@ -59,7 +63,7 @@ def build_setup_plan(
     if not clean_model:
         raise ValueError("Informe o modelo que será utilizado.")
     if normalized_provider.startswith("openai") and not api_key_supplied:
-        raise ValueError("A configuração OpenAI exige uma chave informada fora do repositório.")
+        raise ValueError("A configuração OpenAI exige confirmação de que uma chave está disponível.")
 
     values = {
         "ZEUSEX_AI_PROVIDER": normalized_provider,
@@ -70,20 +74,24 @@ def build_setup_plan(
 
     commands: list[str] = []
     if selected_shell in {"powershell", "pwsh"}:
-        commands.extend(f'$env:{key} = "{value.replace(chr(34), "`\"")}"' for key, value in values.items())
+        commands.extend(
+            f'$env:{key} = "{_powershell_quote(value)}"'
+            for key, value in values.items()
+        )
         if normalized_provider.startswith("openai"):
-            commands.append('$env:ZEUSEX_AI_API_KEY = Read-Host "Chave da API" -AsSecureString')
+            commands.append('$env:ZEUSEX_AI_API_KEY = "<cole-a-chave-apenas-nesta-sessao>"')
     elif selected_shell in {"cmd", "windows-cmd"}:
         commands.extend(f"set {key}={value}" for key, value in values.items())
         if normalized_provider.startswith("openai"):
-            commands.append("set /p ZEUSEX_AI_API_KEY=Chave da API: ")
+            commands.append("set ZEUSEX_AI_API_KEY=<cole-a-chave-apenas-nesta-sessao>")
     else:
         commands.extend(f"export {key}={_quote(value)}" for key, value in values.items())
         if normalized_provider.startswith("openai"):
-            commands.append("read -s -p 'Chave da API: ' ZEUSEX_AI_API_KEY && export ZEUSEX_AI_API_KEY")
+            commands.append("export ZEUSEX_AI_API_KEY='<cole-a-chave-apenas-nesta-sessao>'")
 
     notes = [
         "Os comandos valem apenas para a sessão atual do terminal.",
+        "Substitua o marcador da chave apenas no terminal local.",
         "A chave não deve ser colocada em commits, prints ou arquivos versionados.",
         "Execute 'jarvis zeusex diagnose' após configurar.",
     ]

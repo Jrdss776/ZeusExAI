@@ -1,6 +1,9 @@
 name: ZeusExAI one-time format
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/zeusex-format-once.yml"
   push:
     branches:
       - develop-zeusex

@@ -146,15 +146,37 @@ def skill_group() -> None:
 
 @skill_group.command("list")
 def skill_list() -> None:
-    """Lista Skills registradas e seus requisitos de segurança."""
+    """Lista Skills registradas, origem e permissões declaradas."""
 
     table = Table(title="Skills do ZeusExAI")
     table.add_column("Nome", style="bold")
     table.add_column("Descrição")
+    table.add_column("Permissões")
+    table.add_column("Origem")
     table.add_column("Confirmação")
     for skill in default_registry().list():
-        table.add_row(skill.name, skill.description, "sim" if skill.requires_confirmation else "não")
+        permissions = ", ".join(skill.permissions) if skill.permissions else "nenhuma"
+        table.add_row(
+            skill.name,
+            skill.description,
+            permissions,
+            skill.source,
+            "sim" if skill.requires_confirmation else "não",
+        )
     Console().print(table)
+
+
+@skill_group.command("manifest")
+@click.argument("name")
+def skill_manifest(name: str) -> None:
+    """Exibe o manifesto auditável de uma Skill."""
+
+    skill = default_registry().get(name)
+    if skill is None:
+        raise click.ClickException(f"Skill desconhecida: {name}.")
+    manifest = skill.manifest()
+    for key, value in manifest.items():
+        click.echo(f"{key}: {value}")
 
 
 @skill_group.command("run")

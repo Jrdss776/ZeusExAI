@@ -91,3 +91,45 @@ def test_marketplace_analyze360_outputs_json() -> None:
     assert '"profit"' in result.output
     assert '"advertisement"' in result.output
     assert '"Material: mandioca"' in result.output
+
+
+def test_marketplace_analyze360_can_save_and_rank(tmp_path) -> None:
+    payload = (
+        '{"product":{"name":"Produto promissor","marketplace":"shopee",'
+        '"sale_price":"100","product_cost":"40"},'
+        '"signals":{"demand":"90","competition":"20","margin":"80",'
+        '"listing_quality":"80"}}'
+    )
+    env = {"ZEUSEX_DATA_DIR": str(tmp_path)}
+    runner = CliRunner()
+
+    saved = runner.invoke(
+        zeusex,
+        [
+            "marketplace",
+            "analyze360",
+            "--payload",
+            payload,
+            "--format",
+            "json",
+            "--save",
+        ],
+        env=env,
+    )
+    ranked = runner.invoke(
+        zeusex,
+        ["marketplace", "reports", "top"],
+        env=env,
+    )
+    shown = runner.invoke(
+        zeusex,
+        ["marketplace", "reports", "show", "1", "--format", "markdown"],
+        env=env,
+    )
+
+    assert saved.exit_code == 0
+    assert "Relatório salvo com ID 1" in saved.output
+    assert ranked.exit_code == 0
+    assert "Produto promissor" in ranked.output
+    assert shown.exit_code == 0
+    assert "# Análise 360" in shown.output

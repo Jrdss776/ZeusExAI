@@ -1,6 +1,7 @@
 """Camada oficial de personalização do ZeusExAI."""
 
 from openjarvis.zeusex.analysis_queue import AnalysisJob, AnalysisQueue
+from openjarvis.zeusex.analysis_worker import AnalysisWorker, WorkerOutcome
 from openjarvis.zeusex.competitors import CompetitorComparison, compare_listings
 from openjarvis.zeusex.desktop_automation import allowed_applications, open_allowed_application
 from openjarvis.zeusex.diagnostics import DiagnosticResult, diagnose_provider
@@ -16,6 +17,13 @@ from openjarvis.zeusex.marketplace import (
     analyze_potential,
     analyze_profit,
     create_advertisement_draft,
+)
+from openjarvis.zeusex.marketplace_http import (
+    HTTPClientConfig,
+    MarketplaceHTTPError,
+    MercadoLivreReadClient,
+    ReadOnlyHTTPClient,
+    ShopeeReadClient,
 )
 from openjarvis.zeusex.marketplace_listings import (
     MarketplaceAdapter,
@@ -39,6 +47,7 @@ __all__ = [
     "AIEngine",
     "AnalysisJob",
     "AnalysisQueue",
+    "AnalysisWorker",
     "AdvertisementDraft",
     "CallableEngine",
     "CompetitorComparison",
@@ -46,8 +55,11 @@ __all__ = [
     "DisabledEngine",
     "ENTRY_POINT_GROUP",
     "EngineSettings",
+    "HTTPClientConfig",
     "MarketplaceAdapter",
+    "MarketplaceHTTPError",
     "MercadoLivreAdapter",
+    "MercadoLivreReadClient",
     "NormalizedListing",
     "NullSpeechCapture",
     "NullSpeechSynthesizer",
@@ -57,15 +69,18 @@ __all__ = [
     "ProductInput",
     "ProfitAnalysis",
     "OpenAICompatibleEngine",
+    "ReadOnlyHTTPClient",
     "RuntimeConfig",
     "Skill",
     "SkillRegistry",
     "ShopeeAdapter",
+    "ShopeeReadClient",
     "SpeechCapture",
     "SpeechSynthesizer",
     "VoiceConfig",
     "VoiceSession",
     "VoiceTurn",
+    "WorkerOutcome",
     "ZEUSEX_IDENTITY",
     "ZeusExIdentity",
     "ZeusRuntime",

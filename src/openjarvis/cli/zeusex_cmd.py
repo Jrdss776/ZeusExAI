@@ -7,8 +7,10 @@ from rich.console import Console
 from rich.table import Table
 
 from openjarvis.zeusex import ZEUSEX_IDENTITY
+from openjarvis.zeusex.diagnostics import diagnose_provider
 from openjarvis.zeusex.engines import EngineSettings, build_engine
 from openjarvis.zeusex.runtime import ZeusRuntime
+from openjarvis.zeusex.skills import default_registry
 
 _MODES = ["assistant", "system", "vision", "sales", "monitor", "developer"]
 
@@ -19,7 +21,7 @@ def _runtime() -> ZeusRuntime:
     return ZeusRuntime(engine=build_engine())
 
 
-@click.group(help="Identidade, conversa, memória e diagnóstico do ZeusExAI.")
+@click.group(help="Identidade, conversa, memória, diagnóstico e Skills do ZeusExAI.")
 def zeusex() -> None:
     """Expõe os recursos ZeusExAI sem substituir a CLI original."""
 
@@ -50,8 +52,18 @@ def status(mode: str) -> None:
     table.add_row("Memória", "SQLite local")
     table.add_row("Provedor de IA", provider)
     table.add_row("Modelo", model)
+    table.add_row("Skills", str(len(default_registry().list())))
     table.add_row("Política", "Confirmação obrigatória para ações sensíveis")
     Console().print(table)
+
+
+@zeusex.command("diagnose")
+def diagnose() -> None:
+    """Verifica configuração e conectividade do provedor sem expor credenciais."""
+
+    result = diagnose_provider()
+    prefix = "OK" if result.ok else "FALHA"
+    click.echo(f"[{prefix}] {result.provider}: {result.message}")
 
 
 @zeusex.command("prompt")
@@ -125,6 +137,34 @@ def memory(limit: int) -> None:
         return
     for index, item in enumerate(items, start=1):
         click.echo(f"{index}. {item}")
+
+
+@zeusex.group("skill", help="Lista e executa Skills modulares do ZeusExAI.")
+def skill_group() -> None:
+    """Gerencia o catálogo local de Skills."""
+
+
+@skill_group.command("list")
+def skill_list() -> None:
+    """Lista Skills registradas e seus requisitos de segurança."""
+
+    table = Table(title="Skills do ZeusExAI")
+    table.add_column("Nome", style="bold")
+    table.add_column("Descrição")
+    table.add_column("Confirmação")
+    for skill in default_registry().list():
+        table.add_row(skill.name, skill.description, "sim" if skill.requires_confirmation else "não")
+    Console().print(table)
+
+
+@skill_group.command("run")
+@click.argument("name")
+@click.argument("argument", nargs=-1)
+@click.option("--confirm", is_flag=True, help="Confirma explicitamente uma ação sensível.")
+def skill_run(name: str, argument: tuple[str, ...], confirm: bool) -> None:
+    """Executa uma Skill registrada."""
+
+    click.echo(default_registry().execute(name, " ".join(argument), confirmed=confirm))
 
 
 __all__ = ["zeusex"]

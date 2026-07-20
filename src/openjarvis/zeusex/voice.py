@@ -17,6 +17,8 @@ class VoiceConfig:
     synthesizer_backend: str = "none"
     model: str = "small"
     listen_seconds: float = 5.0
+    input_device: int | None = None
+    preferred_voice: str = "pt-BR"
 
     @classmethod
     def from_env(cls) -> "VoiceConfig":
@@ -27,6 +29,13 @@ class VoiceConfig:
             listen_seconds = float(os.getenv("ZEUSEX_VOICE_LISTEN_SECONDS", "5"))
         except ValueError:
             listen_seconds = 5.0
+        raw_device = os.getenv("ZEUSEX_VOICE_INPUT_DEVICE", "").strip()
+        try:
+            input_device = int(raw_device) if raw_device else None
+        except ValueError:
+            input_device = None
+        if input_device is not None and input_device < 0:
+            input_device = None
         return cls(
             locale=os.getenv("ZEUSEX_VOICE_LOCALE", "pt-BR").strip() or "pt-BR",
             wake_word=os.getenv("ZEUSEX_WAKE_WORD", "Zeus").strip() or "Zeus",
@@ -35,6 +44,8 @@ class VoiceConfig:
             synthesizer_backend=os.getenv("ZEUSEX_VOICE_SYNTHESIZER", "none").strip().lower() or "none",
             model=os.getenv("ZEUSEX_VOICE_MODEL", "small").strip() or "small",
             listen_seconds=max(1.0, min(30.0, listen_seconds)),
+            input_device=input_device,
+            preferred_voice=os.getenv("ZEUSEX_VOICE_PREFERRED_VOICE", "pt-BR").strip() or "pt-BR",
         )
 
 
@@ -63,10 +74,12 @@ def extract_wake_command(transcript: str, config: VoiceConfig | None = None) -> 
 def voice_status(config: VoiceConfig | None = None) -> str:
     settings = config or VoiceConfig.from_env()
     state = "ativado" if settings.enabled else "desativado"
+    device = "padrão" if settings.input_device is None else str(settings.input_device)
     return (
         f"Voz: {state} | Idioma: {settings.locale} | "
         f"Palavra de ativação: {settings.wake_word} | "
-        f"Captura: {settings.capture_backend} | Síntese: {settings.synthesizer_backend}"
+        f"Captura: {settings.capture_backend} | Síntese: {settings.synthesizer_backend} | "
+        f"Dispositivo: {device} | Voz preferida: {settings.preferred_voice}"
     )
 
 

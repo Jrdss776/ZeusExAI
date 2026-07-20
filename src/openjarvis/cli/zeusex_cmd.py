@@ -25,6 +25,7 @@ from openjarvis.zeusex.marketplace import (
     analyze_profit,
     create_advertisement_draft,
 )
+from openjarvis.zeusex.report_store import AnalysisReportStore
 from openjarvis.zeusex.runtime import RuntimeConfig, ZeusRuntime
 from openjarvis.zeusex.setup_assistant import build_setup_plan
 from openjarvis.zeusex.skills import default_registry
@@ -396,6 +397,10 @@ def _analysis_queue() -> AnalysisQueue:
     return AnalysisQueue(RuntimeConfig.from_env().data_dir / "marketplace-queue.db")
 
 
+def _report_store() -> AnalysisReportStore:
+    return AnalysisReportStore(RuntimeConfig.from_env().data_dir / "marketplace-reports.db")
+
+
 @marketplace_group.command("fetch-ml")
 @click.argument("listing_id")
 def marketplace_fetch_ml(listing_id: str) -> None:
@@ -503,7 +508,8 @@ def marketplace_queue_run_one() -> None:
     default="markdown",
     show_default=True,
 )
-def marketplace_analyze360(payload: str, output_format: str) -> None:
+@click.option("--save", is_flag=True, help="Salva o relatório no histórico SQLite local.")
+def marketplace_analyze360(payload: str, output_format: str, save: bool) -> None:
     """Gera uma Análise 360 local sem publicar ou buscar dados ausentes."""
 
     try:
@@ -517,6 +523,82 @@ def marketplace_analyze360(payload: str, output_format: str) -> None:
     except (TypeError, ValueError, ArithmeticError) as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(report.to_json() if output_format == "json" else report.to_markdown())
+    if save:
+        saved = _report_store().save(report)
+        click.echo(f"Relatório salvo com ID {saved.id}.", err=True)
+
+
+@marketplace_group.group("reports", help="Consulta o histórico local de Análises 360.")
+def marketplace_reports_group() -> None:
+    """Histórico local sem credenciais ou publicação externa."""
+
+
+@marketplace_reports_group.command("list")
+@click.option("--limit", type=click.IntRange(1, 1000), default=100, show_default=True)
+def marketplace_reports_list(limit: int) -> None:
+    reports = _report_store().list(limit=limit)
+    if not reports:
+        click.echo("Nenhum relatório salvo.")
+        return
+    table = Table(title="Histórico de Análises 360")
+    table.add_column("ID", style="bold")
+    table.add_column("Produto")
+    table.add_column("Marketplace")
+    table.add_column("Lucro")
+    table.add_column("Margem")
+    table.add_column("Potencial")
+    for report in reports:
+        table.add_row(
+            str(report.id),
+            report.product_name,
+            report.marketplace,
+            f"R$ {report.profit}",
+            f"{report.margin_percent}%",
+            str(report.potential_score) if report.potential_score is not None else "não informado",
+        )
+    Console().print(table)
+
+
+@marketplace_reports_group.command("top")
+@click.option("--limit", type=click.IntRange(1, 100), default=10, show_default=True)
+@click.option("--include-unprofitable", is_flag=True)
+def marketplace_reports_top(limit: int, include_unprofitable: bool) -> None:
+    reports = _report_store().top_products(
+        limit=limit,
+        profitable_only=not include_unprofitable,
+    )
+    if not reports:
+        click.echo("Nenhum produto disponível para o ranking.")
+        return
+    for index, report in enumerate(reports, start=1):
+        score = (
+            str(report.potential_score)
+            if report.potential_score is not None
+            else "não informado"
+        )
+        click.echo(
+            f"{index}. {report.product_name} — potencial {score} — lucro R$ {report.profit}"
+        )
+
+
+@marketplace_reports_group.command("show")
+@click.argument("report_id", type=click.IntRange(1))
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["markdown", "json"], case_sensitive=False),
+    default="markdown",
+    show_default=True,
+)
+def marketplace_reports_show(report_id: int, output_format: str) -> None:
+    report = _report_store().get(report_id)
+    if report is None:
+        raise click.ClickException(f"Relatório não encontrado: {report_id}.")
+    click.echo(
+        json.dumps(report.report, ensure_ascii=False, indent=2, sort_keys=True)
+        if output_format == "json"
+        else report.markdown
+    )
 
 
 __all__ = ["zeusex"]

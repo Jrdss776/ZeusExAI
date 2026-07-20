@@ -56,10 +56,19 @@ jobs:
           ZEUSEX_AI_PROVIDER: "disabled"
         run: |
           set +e
-          python -m pytest tests/zeusex -q > pytest-output.log 2>&1
+          python -m pytest tests/zeusex -q --tb=short > pytest-output.log 2>&1
           status=$?
-          tail -n 200 pytest-output.log
+          tail -n 120 pytest-output.log
           exit $status
+
+      - name: Upload pytest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-python-${{ matrix.python-version }}
+          path: pytest-output.log
+          if-no-files-found: error
+          retention-days: 5
 
       - name: Compile ZeusExAI modules
         if: always()

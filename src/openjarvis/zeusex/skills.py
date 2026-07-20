@@ -8,6 +8,7 @@ from importlib import metadata
 from typing import Any
 
 from openjarvis.zeusex.local_automation import list_local_files, system_information
+from openjarvis.zeusex.permissions import PermissionPolicy
 
 SkillHandler = Callable[[str], str]
 ENTRY_POINT_GROUP = "zeusex.skills"
@@ -42,10 +43,11 @@ class Skill:
 
 
 class SkillRegistry:
-    """Catálogo extensível de Skills, desacoplado do runtime principal."""
+    """Catálogo extensível de Skills com política de permissões."""
 
-    def __init__(self) -> None:
+    def __init__(self, policy: PermissionPolicy | None = None) -> None:
         self._skills: dict[str, Skill] = {}
+        self.policy = policy or PermissionPolicy()
 
     def register(self, skill: Skill) -> None:
         key = skill.name.strip().lower()
@@ -69,6 +71,9 @@ class SkillRegistry:
         skill = self.get(name)
         if skill is None:
             return f"Skill desconhecida: {name}."
+        decision = self.policy.evaluate(skill.permissions, confirmed=confirmed)
+        if not decision.allowed:
+            return decision.reason
         try:
             return skill.execute(argument, confirmed=confirmed)
         except Exception as exc:  # proteção na fronteira de plugins

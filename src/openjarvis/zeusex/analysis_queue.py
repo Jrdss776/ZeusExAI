@@ -22,10 +22,11 @@ class AnalysisJob:
     status: str
     attempts: int
     error: str | None
+    result: dict[str, Any] | None = None
 
 
 class AnalysisQueue:
-    """Armazena trabalhos localmente e permite retomada após interrupção."""
+    """Armazena trabalhos e resultados localmente para retomada segura."""
 
     def __init__(self, database_path: Path | str) -> None:
         self.database_path = Path(database_path)
@@ -48,11 +49,22 @@ class AnalysisQueue:
                     status TEXT NOT NULL,
                     attempts INTEGER NOT NULL DEFAULT 0,
                     error TEXT,
+                    result TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
                 """
             )
+            columns = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(marketplace_analysis_queue)"
+                ).fetchall()
+            }
+            if "result" not in columns:
+                connection.execute(
+                    "ALTER TABLE marketplace_analysis_queue ADD COLUMN result TEXT"
+                )
 
     @staticmethod
     def _now() -> str:
@@ -73,7 +85,11 @@ class AnalysisQueue:
             raise ValueError("O payload precisa ser compatível com JSON.") from exc
 
     @staticmethod
-    def _row(row: sqlite3.Row) -> AnalysisJob:
+    def _decode(value: str | None) -> dict[str, Any] | None:
+        return json.loads(value) if value else None
+
+    @classmethod
+    def _row(cls, row: sqlite3.Row) -> AnalysisJob:
         return AnalysisJob(
             id=row["id"],
             marketplace=row["marketplace"],
@@ -81,6 +97,7 @@ class AnalysisQueue:
             status=row["status"],
             attempts=row["attempts"],
             error=row["error"],
+            result=cls._decode(row["result"]),
         )
 
     def enqueue(self, marketplace: str, payload: Mapping[str, Any]) -> AnalysisJob:
@@ -91,8 +108,9 @@ class AnalysisQueue:
             cursor = connection.execute(
                 """
                 INSERT INTO marketplace_analysis_queue(
-                    marketplace, payload, status, attempts, error, created_at, updated_at
-                ) VALUES (?, ?, 'queued', 0, NULL, ?, ?)
+                    marketplace, payload, status, attempts, error, result,
+                    created_at, updated_at
+                ) VALUES (?, ?, 'queued', 0, NULL, NULL, ?, ?)
                 """,
                 (normalized, serialized, now, now),
             )
@@ -150,28 +168,46 @@ class AnalysisQueue:
             ).fetchone()
         return self._row(updated)
 
-    def complete(self, job_id: int) -> AnalysisJob:
-        return self._transition(job_id, "completed", None)
+    def complete(
+        self,
+        job_id: int,
+        result: Mapping[str, Any] | None = None,
+    ) -> AnalysisJob:
+        serialized = self._serialize(result) if result is not None else None
+        return self._transition(job_id, "completed", None, serialized)
 
-    def fail(self, job_id: int, error: str, *, retry: bool = True, max_attempts: int = 3) -> AnalysisJob:
+    def fail(
+        self,
+        job_id: int,
+        error: str,
+        *,
+        retry: bool = True,
+        max_attempts: int = 3,
+    ) -> AnalysisJob:
         current = self.get(job_id)
         if current is None:
             raise KeyError(f"Trabalho não encontrado: {job_id}.")
         status = "queued" if retry and current.attempts < max(1, max_attempts) else "failed"
         safe_error = error.strip()[:500] or "Falha não especificada."
-        return self._transition(job_id, status, safe_error)
+        return self._transition(job_id, status, safe_error, None)
 
-    def _transition(self, job_id: int, status: str, error: str | None) -> AnalysisJob:
+    def _transition(
+        self,
+        job_id: int,
+        status: str,
+        error: str | None,
+        result: str | None,
+    ) -> AnalysisJob:
         if status not in QUEUE_STATUSES:
             raise ValueError("Status de fila inválido.")
         with self._connect() as connection:
             cursor = connection.execute(
                 """
                 UPDATE marketplace_analysis_queue
-                SET status = ?, error = ?, updated_at = ?
+                SET status = ?, error = ?, result = COALESCE(?, result), updated_at = ?
                 WHERE id = ?
                 """,
-                (status, error, self._now(), job_id),
+                (status, error, result, self._now(), job_id),
             )
             if cursor.rowcount == 0:
                 raise KeyError(f"Trabalho não encontrado: {job_id}.")

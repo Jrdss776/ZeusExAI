@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from openjarvis.zeusex import ZEUSEX_IDENTITY
+from openjarvis.zeusex.analysis_360 import analysis_360_from_mapping
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker
 from openjarvis.zeusex.diagnostics import diagnose_provider
@@ -491,6 +492,31 @@ def marketplace_queue_run_one() -> None:
         + (f" — {outcome.job.error}" if outcome.job.error else "")
         + "."
     )
+
+
+@marketplace_group.command("analyze360")
+@click.option("--payload", required=True, help="Objeto JSON com produto e dados opcionais.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["markdown", "json"], case_sensitive=False),
+    default="markdown",
+    show_default=True,
+)
+def marketplace_analyze360(payload: str, output_format: str) -> None:
+    """Gera uma Análise 360 local sem publicar ou buscar dados ausentes."""
+
+    try:
+        decoded = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise click.ClickException("O payload precisa ser um objeto JSON válido.") from exc
+    if not isinstance(decoded, dict):
+        raise click.ClickException("O payload precisa ser um objeto JSON.")
+    try:
+        report = analysis_360_from_mapping(decoded)
+    except (TypeError, ValueError, ArithmeticError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(report.to_json() if output_format == "json" else report.to_markdown())
 
 
 __all__ = ["zeusex"]

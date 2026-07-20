@@ -13,6 +13,11 @@ from openjarvis.zeusex.runtime import ZeusRuntime
 from openjarvis.zeusex.setup_assistant import build_setup_plan
 from openjarvis.zeusex.skills import default_registry
 from openjarvis.zeusex.voice import VoiceConfig, voice_status
+from openjarvis.zeusex.voice_backends import (
+    VoiceBackendError,
+    build_capture_backend,
+    build_synthesizer_backend,
+)
 from openjarvis.zeusex.voice_runtime import VoiceSession
 
 _MODES = ["assistant", "system", "vision", "sales", "monitor", "developer"]
@@ -69,7 +74,7 @@ def setup_plan(provider: str, model: str, base_url: str, shell: str | None, api_
     click.echo(plan.render())
 
 
-@zeusex.group("voice", help="Inspeciona e simula o fluxo seguro de voz pt-BR.")
+@zeusex.group("voice", help="Inspeciona, simula e executa o fluxo seguro de voz pt-BR.")
 def voice_group() -> None:
     """Gerencia voz sem ativar microfone automaticamente."""
 
@@ -85,9 +90,50 @@ def voice_status_command() -> None:
 @click.option("--enabled/--disabled", default=True, show_default=True)
 def voice_simulate(transcript: tuple[str, ...], mode: str, enabled: bool) -> None:
     env = VoiceConfig.from_env()
-    config = VoiceConfig(locale=env.locale, wake_word=env.wake_word, enabled=enabled)
+    config = VoiceConfig(
+        locale=env.locale,
+        wake_word=env.wake_word,
+        enabled=enabled,
+        capture_backend=env.capture_backend,
+        synthesizer_backend="none",
+        model=env.model,
+        listen_seconds=env.listen_seconds,
+    )
     turn = VoiceSession(_runtime(), config=config).process_transcript(" ".join(transcript), mode=mode.lower())
     click.echo(turn.response if turn.activated else turn.reason)
+
+
+@voice_group.command("listen")
+@click.option("--mode", type=click.Choice(_MODES, case_sensitive=False), default="assistant", show_default=True)
+@click.option("--speak/--no-speak", default=True, show_default=True)
+def voice_listen(mode: str, speak: bool) -> None:
+    """Escuta uma única fala após comando explícito do usuário."""
+
+    config = VoiceConfig.from_env()
+    if not config.enabled:
+        raise click.ClickException("A voz está desativada. Defina ZEUSEX_VOICE_ENABLED=true.")
+    try:
+        capture = build_capture_backend(
+            config.capture_backend,
+            model_name=config.model,
+            duration_seconds=config.listen_seconds,
+        )
+        synthesizer = build_synthesizer_backend(
+            config.synthesizer_backend if speak else "none"
+        )
+    except VoiceBackendError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    turn = VoiceSession(
+        _runtime(),
+        config=config,
+        capture=capture,
+        synthesizer=synthesizer,
+    ).listen_once(mode=mode.lower())
+    if turn.activated:
+        click.echo(turn.response or turn.reason)
+    else:
+        click.echo(turn.reason)
 
 
 @zeusex.command("prompt")
@@ -152,7 +198,13 @@ def skill_list() -> None:
     table.add_column("Origem")
     table.add_column("Confirmação")
     for skill in default_registry().list():
-        table.add_row(skill.name, skill.description, ", ".join(skill.permissions) or "nenhuma", skill.source, "sim" if skill.requires_confirmation else "não")
+        table.add_row(
+            skill.name,
+            skill.description,
+            ", ".join(skill.permissions) or "nenhuma",
+            skill.source,
+            "sim" if skill.requires_confirmation else "não",
+        )
     Console().print(table)
 
 

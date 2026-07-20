@@ -4,6 +4,7 @@ O pacote mantém identidade, runtime, memória, provedores, diagnóstico e Skill
 isolados do núcleo OpenJarvis para facilitar atualizações futuras do projeto-base.
 """
 
+from openjarvis.zeusex.desktop_automation import allowed_applications, open_allowed_application
 from openjarvis.zeusex.diagnostics import DiagnosticResult, diagnose_provider
 from openjarvis.zeusex.engines import (
     EngineSettings,
@@ -26,6 +27,7 @@ from openjarvis.zeusex.skills import (
     default_registry,
     discover_skills,
 )
+from openjarvis.zeusex.voice import VoiceConfig, extract_wake_command, voice_status
 
 __all__ = [
     "AIEngine",
@@ -39,11 +41,16 @@ __all__ = [
     "RuntimeConfig",
     "Skill",
     "SkillRegistry",
+    "VoiceConfig",
     "ZEUSEX_IDENTITY",
     "ZeusExIdentity",
     "ZeusRuntime",
+    "allowed_applications",
     "build_engine",
     "default_registry",
     "diagnose_provider",
     "discover_skills",
+    "extract_wake_command",
+    "open_allowed_application",
+    "voice_status",
 ]

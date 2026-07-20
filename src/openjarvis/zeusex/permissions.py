@@ -19,12 +19,14 @@ class PermissionPolicy:
         default_factory=lambda: {
             "system.read_basic",
             "filesystem.read_directory",
+            "desktop.open_allowlisted_app",
             "system.sensitive_action",
         }
     )
     confirmation_required: set[str] = field(
         default_factory=lambda: {
             "filesystem.read_directory",
+            "desktop.open_allowlisted_app",
             "system.sensitive_action",
         }
     )

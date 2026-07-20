@@ -1,5 +1,10 @@
 """Camada oficial de personalização do ZeusExAI."""
 
+from openjarvis.zeusex.analysis_360 import (
+    Analysis360Report,
+    analysis_360_from_mapping,
+    build_analysis_360,
+)
 from openjarvis.zeusex.analysis_queue import AnalysisJob, AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker, WorkerOutcome
 from openjarvis.zeusex.competitors import CompetitorComparison, compare_listings
@@ -45,6 +50,7 @@ from openjarvis.zeusex.voice_runtime import (
 
 __all__ = [
     "AIEngine",
+    "Analysis360Report",
     "AnalysisJob",
     "AnalysisQueue",
     "AnalysisWorker",
@@ -85,9 +91,11 @@ __all__ = [
     "ZeusExIdentity",
     "ZeusRuntime",
     "allowed_applications",
+    "analysis_360_from_mapping",
     "analyze_batch",
     "analyze_potential",
     "analyze_profit",
+    "build_analysis_360",
     "build_engine",
     "compare_listings",
     "create_advertisement_draft",

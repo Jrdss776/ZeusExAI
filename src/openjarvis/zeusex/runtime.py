@@ -11,6 +11,7 @@ import os
 import sqlite3
 
 from openjarvis.zeusex.identity import ZEUSEX_IDENTITY
+from openjarvis.zeusex.skills import SkillRegistry, default_registry
 
 
 class AIEngine(Protocol):
@@ -59,17 +60,19 @@ class RuntimeConfig:
 
 
 class ZeusRuntime:
-    """Processa comandos, mantém memória e delega conversas ao motor de IA."""
+    """Processa comandos, Skills, memória e conversas com o motor de IA."""
 
     def __init__(
         self,
         engine: AIEngine | None = None,
         config: RuntimeConfig | None = None,
+        skills: SkillRegistry | None = None,
     ) -> None:
         self.config = config or RuntimeConfig.from_env()
         self.config.data_dir.mkdir(parents=True, exist_ok=True)
         self.database_path = self.config.data_dir / "zeusex.db"
         self.engine = engine or DisabledEngine()
+        self.skills = skills or default_registry()
         self._initialize_database()
 
     def _connect(self) -> sqlite3.Connection:
@@ -139,6 +142,23 @@ class ZeusRuntime:
             ).fetchall()
         return [row["content"] for row in rows]
 
+    def _handle_skill_command(self, argument: str, *, confirmed: bool = False) -> str:
+        name, _, skill_argument = argument.strip().partition(" ")
+        if not name:
+            names = ", ".join(skill.name for skill in self.skills.list())
+            return f"Skills disponíveis: {names}" if names else "Nenhuma Skill disponível."
+        return self.skills.execute(name, skill_argument, confirmed=confirmed)
+
+    def _generate_safely(self, prompt: str, history: list[tuple[str, str]]) -> str:
+        try:
+            response = self.engine.generate(prompt, history).strip()
+        except Exception as exc:
+            return (
+                "Não consegui acessar o motor de IA. "
+                f"Falha técnica: {type(exc).__name__}. Execute 'diagnose' para verificar a configuração."
+            )
+        return response or "O motor de IA não retornou uma resposta."
+
     def handle(self, text: str, mode: str = "assistant") -> str:
         clean_text = text.strip()
         if not clean_text:
@@ -149,25 +169,31 @@ class ZeusRuntime:
         if normalized_command == "status":
             return (
                 f"{ZEUSEX_IDENTITY.name} online. Idioma: {ZEUSEX_IDENTITY.locale}. "
-                f"Modo: {mode}. Palavra de ativação: {ZEUSEX_IDENTITY.wake_word}."
+                f"Modo: {mode}. Palavra de ativação: {ZEUSEX_IDENTITY.wake_word}. "
+                f"Skills: {len(self.skills.list())}."
             )
         if normalized_command == "ajuda":
-            return "Comandos: status, ajuda, lembrar <texto>, memoria."
+            return (
+                "Comandos: status, ajuda, lembrar <texto>, memoria, "
+                "skill <nome> <argumento>, confirmar-skill <nome> <argumento>."
+            )
         if normalized_command == "lembrar":
             return self.remember(argument)
         if normalized_command in {"memoria", "memória"}:
             items = self.memories()
             return "Memórias: " + " | ".join(items) if items else "Nenhuma memória registrada."
+        if normalized_command == "skill":
+            return self._handle_skill_command(argument)
+        if normalized_command in {"confirmar-skill", "confirmar_skill"}:
+            return self._handle_skill_command(argument, confirmed=True)
 
         history = self.recent_history()
         self._store_message("user", clean_text)
         system_prompt = ZEUSEX_IDENTITY.system_prompt(mode)
-        response = self.engine.generate(
+        response = self._generate_safely(
             f"{system_prompt}\n\nUsuário: {clean_text}",
             history,
-        ).strip()
-        if not response:
-            response = "O motor de IA não retornou uma resposta."
+        )
         self._store_message("assistant", response)
         return response
 

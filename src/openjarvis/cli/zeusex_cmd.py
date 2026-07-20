@@ -7,9 +7,16 @@ from rich.console import Console
 from rich.table import Table
 
 from openjarvis.zeusex import ZEUSEX_IDENTITY
+from openjarvis.zeusex.engines import EngineSettings, build_engine
 from openjarvis.zeusex.runtime import ZeusRuntime
 
 _MODES = ["assistant", "system", "vision", "sales", "monitor", "developer"]
+
+
+def _runtime() -> ZeusRuntime:
+    """Cria o runtime usando apenas configuração de ambiente."""
+
+    return ZeusRuntime(engine=build_engine())
 
 
 @click.group(help="Identidade, conversa, memória e diagnóstico do ZeusExAI.")
@@ -26,9 +33,12 @@ def zeusex() -> None:
     help="Modo operacional a exibir.",
 )
 def status(mode: str) -> None:
-    """Exibe identidade, modo e política de segurança."""
+    """Exibe identidade, modo, provedor e política de segurança."""
 
     identity = ZEUSEX_IDENTITY
+    settings = EngineSettings.from_env()
+    provider = settings.provider or "disabled"
+    model = settings.model or "não configurado"
     table = Table(title=f"{identity.name} — Sistema online")
     table.add_column("Componente", style="bold")
     table.add_column("Estado")
@@ -38,6 +48,8 @@ def status(mode: str) -> None:
     table.add_row("Palavra de ativação", identity.wake_word)
     table.add_row("Modo", mode.lower())
     table.add_row("Memória", "SQLite local")
+    table.add_row("Provedor de IA", provider)
+    table.add_row("Modelo", model)
     table.add_row("Política", "Confirmação obrigatória para ações sensíveis")
     Console().print(table)
 
@@ -66,8 +78,7 @@ def prompt(mode: str) -> None:
 def ask(message: tuple[str, ...], mode: str) -> None:
     """Processa uma mensagem pelo runtime persistente do ZeusExAI."""
 
-    runtime = ZeusRuntime()
-    click.echo(runtime.handle(" ".join(message), mode=mode.lower()))
+    click.echo(_runtime().handle(" ".join(message), mode=mode.lower()))
 
 
 @zeusex.command("chat")
@@ -80,7 +91,7 @@ def ask(message: tuple[str, ...], mode: str) -> None:
 def chat(mode: str) -> None:
     """Inicia uma conversa local interativa. Digite sair para encerrar."""
 
-    runtime = ZeusRuntime()
+    runtime = _runtime()
     console = Console()
     console.print(f"[bold]{ZEUSEX_IDENTITY.name}[/bold] online. Digite 'sair' para encerrar.")
     while True:
@@ -100,7 +111,7 @@ def chat(mode: str) -> None:
 def remember(content: tuple[str, ...]) -> None:
     """Registra uma memória persistente local."""
 
-    click.echo(ZeusRuntime().remember(" ".join(content)))
+    click.echo(_runtime().remember(" ".join(content)))
 
 
 @zeusex.command("memory")
@@ -108,7 +119,7 @@ def remember(content: tuple[str, ...]) -> None:
 def memory(limit: int) -> None:
     """Lista memórias persistentes recentes."""
 
-    items = ZeusRuntime().memories(limit)
+    items = _runtime().memories(limit)
     if not items:
         click.echo("Nenhuma memória registrada.")
         return

@@ -19,13 +19,20 @@ from openjarvis.zeusex.runtime import (
     RuntimeConfig,
     ZeusRuntime,
 )
-from openjarvis.zeusex.skills import Skill, SkillRegistry, default_registry
+from openjarvis.zeusex.skills import (
+    ENTRY_POINT_GROUP,
+    Skill,
+    SkillRegistry,
+    default_registry,
+    discover_skills,
+)
 
 __all__ = [
     "AIEngine",
     "CallableEngine",
     "DiagnosticResult",
     "DisabledEngine",
+    "ENTRY_POINT_GROUP",
     "EngineSettings",
     "OllamaEngine",
     "OpenAICompatibleEngine",
@@ -38,4 +45,5 @@ __all__ = [
     "build_engine",
     "default_registry",
     "diagnose_provider",
+    "discover_skills",
 ]

@@ -1,9 +1,24 @@
-"""ZeusExAI customization layer.
+"""Camada oficial de personalização do ZeusExAI.
 
-This package keeps ZeusExAI-specific behavior isolated from the OpenJarvis core,
-which makes upstream synchronization safer.
+O pacote mantém identidade, runtime e memória isolados do núcleo OpenJarvis para
+facilitar atualizações futuras do projeto-base.
 """
 
 from openjarvis.zeusex.identity import ZEUSEX_IDENTITY, ZeusExIdentity
+from openjarvis.zeusex.runtime import (
+    AIEngine,
+    CallableEngine,
+    DisabledEngine,
+    RuntimeConfig,
+    ZeusRuntime,
+)
 
-__all__ = ["ZEUSEX_IDENTITY", "ZeusExIdentity"]
+__all__ = [
+    "AIEngine",
+    "CallableEngine",
+    "DisabledEngine",
+    "RuntimeConfig",
+    "ZEUSEX_IDENTITY",
+    "ZeusExIdentity",
+    "ZeusRuntime",
+]

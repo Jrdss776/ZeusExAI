@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from importlib import metadata
 from typing import Any
 
+from openjarvis.zeusex.desktop_automation import open_allowed_application
 from openjarvis.zeusex.local_automation import list_local_files, system_information
 from openjarvis.zeusex.permissions import PermissionPolicy
 
@@ -147,6 +148,15 @@ def default_registry(*, discover_plugins: bool = True) -> SkillRegistry:
             handler=list_local_files,
             requires_confirmation=True,
             permissions=("filesystem.read_directory",),
+        )
+    )
+    registry.register(
+        Skill(
+            name="open-app",
+            description="Abre somente aplicativos presentes na allowlist fixa do ZeusExAI.",
+            handler=open_allowed_application,
+            requires_confirmation=True,
+            permissions=("desktop.open_allowlisted_app",),
         )
     )
     registry.register(

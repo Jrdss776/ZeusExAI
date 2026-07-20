@@ -1,9 +1,4 @@
-"""Fundação do módulo de voz pt-BR do ZeusExAI.
-
-Esta etapa define configuração, palavra de ativação e normalização de comandos.
-Captura de microfone e síntese permanecem adaptadores opcionais para evitar
-acoplamento a bibliotecas pesadas no núcleo.
-"""
+"""Configuração e palavra de ativação do módulo de voz pt-BR do ZeusExAI."""
 
 from __future__ import annotations
 
@@ -18,16 +13,28 @@ class VoiceConfig:
     locale: str = "pt-BR"
     wake_word: str = "Zeus"
     enabled: bool = False
+    capture_backend: str = "none"
+    synthesizer_backend: str = "none"
+    model: str = "small"
+    listen_seconds: float = 5.0
 
     @classmethod
     def from_env(cls) -> "VoiceConfig":
         enabled = os.getenv("ZEUSEX_VOICE_ENABLED", "false").strip().lower() in {
             "1", "true", "yes", "on", "sim",
         }
+        try:
+            listen_seconds = float(os.getenv("ZEUSEX_VOICE_LISTEN_SECONDS", "5"))
+        except ValueError:
+            listen_seconds = 5.0
         return cls(
             locale=os.getenv("ZEUSEX_VOICE_LOCALE", "pt-BR").strip() or "pt-BR",
             wake_word=os.getenv("ZEUSEX_WAKE_WORD", "Zeus").strip() or "Zeus",
             enabled=enabled,
+            capture_backend=os.getenv("ZEUSEX_VOICE_CAPTURE", "none").strip().lower() or "none",
+            synthesizer_backend=os.getenv("ZEUSEX_VOICE_SYNTHESIZER", "none").strip().lower() or "none",
+            model=os.getenv("ZEUSEX_VOICE_MODEL", "small").strip() or "small",
+            listen_seconds=max(1.0, min(30.0, listen_seconds)),
         )
 
 
@@ -56,7 +63,11 @@ def extract_wake_command(transcript: str, config: VoiceConfig | None = None) -> 
 def voice_status(config: VoiceConfig | None = None) -> str:
     settings = config or VoiceConfig.from_env()
     state = "ativado" if settings.enabled else "desativado"
-    return f"Voz: {state} | Idioma: {settings.locale} | Palavra de ativação: {settings.wake_word}"
+    return (
+        f"Voz: {state} | Idioma: {settings.locale} | "
+        f"Palavra de ativação: {settings.wake_word} | "
+        f"Captura: {settings.capture_backend} | Síntese: {settings.synthesizer_backend}"
+    )
 
 
 __all__ = ["VoiceConfig", "extract_wake_command", "voice_status"]

@@ -24,6 +24,7 @@ from openjarvis.zeusex.android_support import (
 )
 from openjarvis.zeusex.auth import LocalAPIAuthenticator
 from openjarvis.zeusex.beta_readiness import assess_beta_readiness
+from openjarvis.zeusex.beta_acceptance import BETA_VERSION, run_beta_acceptance
 from openjarvis.zeusex.beta_support import (
     build_beta_support_snapshot,
     write_beta_support_report,
@@ -154,6 +155,29 @@ def beta_smoke() -> None:
     click.echo(f"[{cleanup}] limpeza: Dados temporários removidos.")
     click.echo(f"Teste Beta: {'APROVADO' if result.ok else 'REPROVADO'}")
     if not result.ok:
+        raise click.exceptions.Exit(1)
+
+
+@zeusex.command("beta-version")
+def beta_version() -> None:
+    """Mostra a versão do candidato Beta atual."""
+
+    click.echo(f"ZeusExAI {BETA_VERSION}")
+
+
+@zeusex.command("beta-acceptance")
+def beta_acceptance() -> None:
+    """Executa o critério completo de aceitação local da Beta."""
+
+    result = run_beta_acceptance()
+    click.echo(f"Candidato: ZeusExAI {result.version}")
+    click.echo(
+        f"Prontidão: {'APROVADA' if result.readiness.ready else 'BLOQUEADA'} "
+        f"({result.readiness.blockers} bloqueios, {result.readiness.warnings} avisos)"
+    )
+    click.echo(f"Smoke test: {'APROVADO' if result.smoke.ok else 'REPROVADO'}")
+    click.echo(f"Aceitação Beta: {'APROVADA' if result.approved else 'BLOQUEADA'}")
+    if not result.approved:
         raise click.exceptions.Exit(1)
 
 

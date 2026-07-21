@@ -30,6 +30,11 @@ from openjarvis.zeusex.android_support import (
     verify_android_backup,
 )
 from openjarvis.zeusex.auth import AuthenticationResult, LocalAPIAuthenticator
+from openjarvis.zeusex.beta_acceptance import (
+    BETA_VERSION,
+    BetaAcceptanceResult,
+    run_beta_acceptance,
+)
 from openjarvis.zeusex.beta_readiness import (
     BetaReadinessCheck,
     BetaReadinessReport,
@@ -211,6 +216,8 @@ __all__ = [
     "AdvertisementDraft",
     "BackupResult",
     "BackupVerification",
+    "BETA_VERSION",
+    "BetaAcceptanceResult",
     "BetaReadinessCheck",
     "BetaReadinessReport",
     "BetaSupportSnapshot",
@@ -348,6 +355,7 @@ __all__ = [
     "migrate_android_databases",
     "open_allowed_application",
     "restore_android_backup",
+    "run_beta_acceptance",
     "run_beta_smoke_test",
     "rank_opportunities",
     "recommend_price",

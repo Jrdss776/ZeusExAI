@@ -80,6 +80,17 @@ from openjarvis.zeusex.google_calendar_api import (
     CalendarAPIResponse,
     GoogleCalendarAPI,
 )
+from openjarvis.zeusex.gmail import (
+    DisabledGmailConnector,
+    GmailAccessMode,
+    GmailConfig,
+    GmailConnector,
+    GmailConnectorStatus,
+    GmailDraftPreview,
+    GmailMessage,
+    GmailService,
+)
+from openjarvis.zeusex.gmail_api import GmailAPI, GmailAPIResponse
 from openjarvis.zeusex.identity import ZEUSEX_IDENTITY, ZeusExIdentity
 from openjarvis.zeusex.marketplace import (
     AdvertisementDraft,
@@ -186,6 +197,7 @@ __all__ = [
     "DiagnosticResult",
     "DisabledEngine",
     "DisabledGoogleCalendarConnector",
+    "DisabledGmailConnector",
     "ENTRY_POINT_GROUP",
     "EngineSettings",
     "HTTPClientConfig",
@@ -193,6 +205,15 @@ __all__ = [
     "GoogleCalendarConfig",
     "GoogleCalendarConnector",
     "GoogleCalendarService",
+    "GmailAPI",
+    "GmailAPIResponse",
+    "GmailAccessMode",
+    "GmailConfig",
+    "GmailConnector",
+    "GmailConnectorStatus",
+    "GmailDraftPreview",
+    "GmailMessage",
+    "GmailService",
     "MarketplaceAdapter",
     "MarketplaceCopy",
     "LocalAPIAuthenticator",

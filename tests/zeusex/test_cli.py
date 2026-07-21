@@ -261,3 +261,57 @@ def test_scheduler_cli_does_not_offer_shell_job(tmp_path) -> None:
 
     assert result.exit_code != 0
     assert "Invalid value" in result.output
+
+
+def test_schedule_run_one_executes_allowed_analysis(tmp_path) -> None:
+    runner = CliRunner()
+    env = {"ZEUSEX_DATA_DIR": str(tmp_path)}
+    payload = (
+        '{"product":{"name":"Agendado","marketplace":"shopee",'
+        '"sale_price":"100","product_cost":"40"}}'
+    )
+    added = runner.invoke(
+        zeusex,
+        [
+            "schedule",
+            "add",
+            "--type",
+            "analysis360",
+            "--at",
+            "2020-01-01T12:00:00-03:00",
+            "--payload",
+            payload,
+        ],
+        env=env,
+    )
+    executed = runner.invoke(
+        zeusex,
+        ["schedule", "run-one"],
+        env=env,
+    )
+    reports = runner.invoke(
+        zeusex,
+        ["marketplace", "reports", "list"],
+        env=env,
+    )
+
+    assert added.exit_code == 0
+    assert executed.exit_code == 0
+    assert "completed" in executed.output
+    assert "Agendado" in reports.output
+
+
+def test_mobile_api_cli_uses_environment_token(tmp_path) -> None:
+    env = {
+        "ZEUSEX_DATA_DIR": str(tmp_path),
+        "ZEUSEX_MOBILE_API_TOKEN": "token-local-seguro-123",
+    }
+    result = CliRunner().invoke(
+        zeusex,
+        ["mobile-api", "GET", "/v1/reports"],
+        env=env,
+    )
+
+    assert result.exit_code == 0
+    assert '"status": 200' in result.output
+    assert "token-local-seguro-123" not in result.output

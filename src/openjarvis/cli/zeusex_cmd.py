@@ -12,6 +12,12 @@ from rich.table import Table
 
 from openjarvis.zeusex import ZEUSEX_IDENTITY
 from openjarvis.zeusex.analysis_360 import analysis_360_from_mapping
+from openjarvis.zeusex.android_support import (
+    AndroidPackageManifest,
+    backup_android_databases,
+    build_android_update_plan,
+    diagnose_android,
+)
 from openjarvis.zeusex.auth import LocalAPIAuthenticator
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker
@@ -894,6 +900,63 @@ def mobile_serve(host: str, port: int) -> None:
         serve_mobile_api(service, config)
     except KeyboardInterrupt:
         click.echo("\nServidor encerrado.")
+
+
+@zeusex.group("android", help="Diagnóstico, pacote e atualização segura no Termux.")
+def android_group() -> None:
+    """Ferramentas Android que preservam os bancos locais."""
+
+
+@android_group.command("diagnose")
+def android_diagnose() -> None:
+    report = diagnose_android(RuntimeConfig.from_env().data_dir)
+    table = Table(title="Diagnóstico Android/Termux")
+    table.add_column("Item", style="bold")
+    table.add_column("Estado")
+    table.add_row("Termux", "detectado" if report.termux_detected else "não detectado")
+    table.add_row("Python", report.python_version)
+    table.add_row("Python suportado", "sim" if report.python_supported else "não")
+    table.add_row("Pasta de dados", report.data_dir)
+    table.add_row("Pasta gravável", "sim" if report.data_dir_writable else "não")
+    table.add_row("Bancos", ", ".join(report.databases) or "nenhum")
+    table.add_row("Rede", report.network_scope)
+    Console().print(table)
+
+
+@android_group.command("package-manifest")
+def android_package_manifest() -> None:
+    click.echo(AndroidPackageManifest().to_json())
+
+
+@android_group.command("update-plan")
+@click.option("--ref", "git_ref", default="develop-zeusex", show_default=True)
+def android_update_plan(git_ref: str) -> None:
+    try:
+        plan = build_android_update_plan(git_ref)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(plan.render())
+
+
+@android_group.command("backup")
+@click.option("--destination", required=True, help="Pasta separada para os backups.")
+@click.option("--confirm", is_flag=True, help="Confirma a criação dos snapshots SQLite.")
+def android_backup(destination: str, confirm: bool) -> None:
+    if not confirm:
+        raise click.ClickException("Use --confirm para criar o backup local.")
+    try:
+        result = backup_android_databases(
+            RuntimeConfig.from_env().data_dir,
+            destination,
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Backup criado em: {result.destination}")
+    if result.files:
+        for path in result.files:
+            click.echo(f"- {path.name}")
+    else:
+        click.echo("Nenhum banco conhecido foi encontrado.")
 
 
 __all__ = ["zeusex"]

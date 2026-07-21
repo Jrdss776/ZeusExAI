@@ -125,8 +125,13 @@ DASHBOARD_HTML = """<!doctype html>
   <section>
     <h2>Central Google</h2>
     <p class="muted">Diagnóstico sanitizado de Calendar, Gmail e Drive.</p>
+    <label for="google-setup-payload">Integrações para prévia OAuth em JSON</label>
+    <textarea id="google-setup-payload">{
+  "integrations": ["calendar", "gmail", "drive"]
+}</textarea>
     <div class="actions">
       <button data-action="googleStatus">Verificar integrações</button>
+      <button data-action="googleSetupPreview">Revisar permissões</button>
     </div>
   </section>
   <section>
@@ -186,6 +191,7 @@ DASHBOARD_HTML = """<!doctype html>
     queue: ["GET", "/v1/queue", null],
     templates: ["GET", "/v1/campaign-templates", null],
     googleStatus: ["GET", "/v1/integrations/google/status", null],
+    googleSetupPreview: ["POST", "/v1/integrations/google/setup/preview", "google-setup-payload"],
     calendarStatus: ["GET", "/v1/integrations/google-calendar/status", null],
     calendarEvents: ["GET", "/v1/integrations/google-calendar/events", null],
     calendarPreview: ["POST", "/v1/integrations/google-calendar/events/preview", "calendar-payload"],

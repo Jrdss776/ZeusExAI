@@ -26,6 +26,7 @@ from openjarvis.zeusex.google_calendar_api import GoogleCalendarAPI
 from openjarvis.zeusex.google_drive import GoogleDriveService
 from openjarvis.zeusex.google_drive_api import GoogleDriveAPI
 from openjarvis.zeusex.google_integrations import GoogleIntegrationsService
+from openjarvis.zeusex.google_setup_api import GoogleSetupAPI
 from openjarvis.zeusex.gmail import GmailService
 from openjarvis.zeusex.gmail_api import GmailAPI
 from openjarvis.zeusex.marketplace import PotentialSignals
@@ -175,6 +176,7 @@ class MobileAPIService:
         gmail_api: GmailAPI | None = None,
         drive_api: GoogleDriveAPI | None = None,
         google_integrations: GoogleIntegrationsService | None = None,
+        google_setup_api: GoogleSetupAPI | None = None,
     ) -> None:
         self.reports = reports
         self.templates = templates
@@ -185,6 +187,7 @@ class MobileAPIService:
         self.gmail_api = gmail_api or GmailAPI(GmailService())
         self.drive_api = drive_api or GoogleDriveAPI(GoogleDriveService())
         self.google_integrations = google_integrations or GoogleIntegrationsService()
+        self.google_setup_api = google_setup_api or GoogleSetupAPI()
 
     @staticmethod
     def _error(status: int, message: str) -> APIResponse:
@@ -237,6 +240,10 @@ class MobileAPIService:
                     200,
                     {"ok": True, "overview": self.google_integrations.overview().to_dict()},
                 )
+
+            if route == "/v1/integrations/google/setup/preview" and verb == "POST":
+                response = self.google_setup_api.dispatch(verb, route, body)
+                return APIResponse(response.status, response.body)
 
             if route == "/v1/integrations/google-calendar/status" and verb == "GET":
                 response = self.calendar_api.dispatch(verb, route)

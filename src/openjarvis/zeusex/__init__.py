@@ -95,6 +95,12 @@ from openjarvis.zeusex.google_integrations import (
     GoogleIntegrationsOverview,
     GoogleIntegrationsService,
 )
+from openjarvis.zeusex.google_setup import (
+    GoogleOAuthSetupPlan,
+    READ_ONLY_SCOPES,
+    build_google_oauth_setup_plan,
+)
+from openjarvis.zeusex.google_setup_api import GoogleSetupAPI, GoogleSetupAPIResponse
 from openjarvis.zeusex.gmail import (
     DisabledGmailConnector,
     GmailAccessMode,
@@ -232,6 +238,9 @@ __all__ = [
     "GoogleIntegrationStatus",
     "GoogleIntegrationsOverview",
     "GoogleIntegrationsService",
+    "GoogleOAuthSetupPlan",
+    "GoogleSetupAPI",
+    "GoogleSetupAPIResponse",
     "GmailAPI",
     "GmailAPIResponse",
     "GmailAccessMode",
@@ -265,6 +274,7 @@ __all__ = [
     "ProfitAnalysis",
     "OpenAICompatibleEngine",
     "ReadOnlyHTTPClient",
+    "READ_ONLY_SCOPES",
     "RuntimeConfig",
     "RestoreResult",
     "SafeScheduler",
@@ -301,6 +311,7 @@ __all__ = [
     "build_android_update_plan",
     "check_android_health",
     "build_engine",
+    "build_google_oauth_setup_plan",
     "campaign_from_mapping",
     "compare_listings",
     "create_advertisement_draft",

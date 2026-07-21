@@ -36,6 +36,14 @@ from openjarvis.zeusex.marketplace_listings import (
     NormalizedListing,
     ShopeeAdapter,
 )
+from openjarvis.zeusex.multichannel import (
+    MarketplaceCopy,
+    MultichannelPackage,
+    SocialCopy,
+    VideoScene,
+    VideoScript,
+    generate_multichannel_content,
+)
 from openjarvis.zeusex.report_store import AnalysisReportStore, SavedAnalysis
 from openjarvis.zeusex.runtime import AIEngine, CallableEngine, DisabledEngine, RuntimeConfig, ZeusRuntime
 from openjarvis.zeusex.skills import ENTRY_POINT_GROUP, Skill, SkillRegistry, default_registry, discover_skills
@@ -65,9 +73,11 @@ __all__ = [
     "EngineSettings",
     "HTTPClientConfig",
     "MarketplaceAdapter",
+    "MarketplaceCopy",
     "MarketplaceHTTPError",
     "MercadoLivreAdapter",
     "MercadoLivreReadClient",
+    "MultichannelPackage",
     "NormalizedListing",
     "NullSpeechCapture",
     "NullSpeechSynthesizer",
@@ -84,8 +94,11 @@ __all__ = [
     "SkillRegistry",
     "ShopeeAdapter",
     "ShopeeReadClient",
+    "SocialCopy",
     "SpeechCapture",
     "SpeechSynthesizer",
+    "VideoScene",
+    "VideoScript",
     "VoiceConfig",
     "VoiceSession",
     "VoiceTurn",
@@ -106,6 +119,7 @@ __all__ = [
     "diagnose_provider",
     "discover_skills",
     "extract_wake_command",
+    "generate_multichannel_content",
     "open_allowed_application",
     "voice_status",
 ]

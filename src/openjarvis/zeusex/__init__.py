@@ -7,6 +7,15 @@ from openjarvis.zeusex.analysis_360 import (
 )
 from openjarvis.zeusex.analysis_queue import AnalysisJob, AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker, WorkerOutcome
+from openjarvis.zeusex.android_support import (
+    AndroidDiagnostic,
+    AndroidPackageManifest,
+    AndroidUpdatePlan,
+    BackupResult,
+    backup_android_databases,
+    build_android_update_plan,
+    diagnose_android,
+)
 from openjarvis.zeusex.auth import AuthenticationResult, LocalAPIAuthenticator
 from openjarvis.zeusex.campaign_store import (
     CampaignTemplateStore,
@@ -99,8 +108,12 @@ __all__ = [
     "AnalysisQueue",
     "AnalysisReportStore",
     "AnalysisWorker",
+    "AndroidDiagnostic",
+    "AndroidPackageManifest",
+    "AndroidUpdatePlan",
     "AuthenticationResult",
     "AdvertisementDraft",
+    "BackupResult",
     "CampaignPackage",
     "CampaignTemplate",
     "CampaignTemplateStore",
@@ -163,7 +176,9 @@ __all__ = [
     "analyze_batch",
     "analyze_potential",
     "analyze_profit",
+    "backup_android_databases",
     "build_analysis_360",
+    "build_android_update_plan",
     "build_engine",
     "campaign_from_mapping",
     "compare_listings",
@@ -171,6 +186,7 @@ __all__ = [
     "create_mobile_server",
     "default_registry",
     "diagnose_provider",
+    "diagnose_android",
     "discover_skills",
     "extract_wake_command",
     "generate_campaign",

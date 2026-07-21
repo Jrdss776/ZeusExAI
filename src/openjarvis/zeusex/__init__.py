@@ -47,6 +47,12 @@ from openjarvis.zeusex.marketplace import (
     analyze_profit,
     create_advertisement_draft,
 )
+from openjarvis.zeusex.commercial_analysis import (
+    CommercialAnalysisRequest,
+    CommercialAnalysisResult,
+    CommercialAnalysisService,
+    CommercialCosts,
+)
 from openjarvis.zeusex.marketplace_http import (
     HTTPClientConfig,
     MarketplaceHTTPError,
@@ -117,6 +123,10 @@ __all__ = [
     "CampaignPackage",
     "CampaignTemplate",
     "CampaignTemplateStore",
+    "CommercialAnalysisRequest",
+    "CommercialAnalysisResult",
+    "CommercialAnalysisService",
+    "CommercialCosts",
     "CatalogItem",
     "CallableEngine",
     "CombinationSuggestion",

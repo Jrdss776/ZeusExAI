@@ -133,3 +133,30 @@ def test_marketplace_analyze360_can_save_and_rank(tmp_path) -> None:
     assert "Produto promissor" in ranked.output
     assert shown.exit_code == 0
     assert "# Análise 360" in shown.output
+
+
+def test_marketplace_content_generates_all_channels() -> None:
+    payload = (
+        '{"product":{"name":"Areia biodegradável","marketplace":"shopee",'
+        '"sale_price":"49.90","product_cost":"25"},'
+        '"attributes":{"Material":"mandioca","Peso":"4 kg"}}'
+    )
+    result = CliRunner().invoke(
+        zeusex,
+        [
+            "marketplace",
+            "content",
+            "--payload",
+            payload,
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"shopee"' in result.output
+    assert '"mercado_livre"' in result.output
+    assert '"whatsapp"' in result.output
+    assert '"instagram"' in result.output
+    assert '"duration_seconds": 60' in result.output
+    assert "Material: mandioca" in result.output

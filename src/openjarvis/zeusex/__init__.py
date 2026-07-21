@@ -7,6 +7,7 @@ from openjarvis.zeusex.analysis_360 import (
 )
 from openjarvis.zeusex.analysis_queue import AnalysisJob, AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker, WorkerOutcome
+from openjarvis.zeusex.auth import AuthenticationResult, LocalAPIAuthenticator
 from openjarvis.zeusex.campaign_store import (
     CampaignTemplateStore,
     SavedCampaignTemplate,
@@ -61,6 +62,7 @@ from openjarvis.zeusex.multichannel import (
 )
 from openjarvis.zeusex.report_store import AnalysisReportStore, SavedAnalysis
 from openjarvis.zeusex.runtime import AIEngine, CallableEngine, DisabledEngine, RuntimeConfig, ZeusRuntime
+from openjarvis.zeusex.schedule_executor import ScheduleExecutor, ScheduleOutcome
 from openjarvis.zeusex.scheduler import (
     ALLOWED_JOB_TYPES,
     SafeScheduler,
@@ -87,6 +89,7 @@ __all__ = [
     "AnalysisQueue",
     "AnalysisReportStore",
     "AnalysisWorker",
+    "AuthenticationResult",
     "AdvertisementDraft",
     "CampaignPackage",
     "CampaignTemplate",
@@ -102,6 +105,7 @@ __all__ = [
     "HTTPClientConfig",
     "MarketplaceAdapter",
     "MarketplaceCopy",
+    "LocalAPIAuthenticator",
     "MarketplaceHTTPError",
     "MercadoLivreAdapter",
     "MercadoLivreReadClient",
@@ -119,6 +123,8 @@ __all__ = [
     "ReadOnlyHTTPClient",
     "RuntimeConfig",
     "SafeScheduler",
+    "ScheduleExecutor",
+    "ScheduleOutcome",
     "SavedCampaignTemplate",
     "SavedAnalysis",
     "Skill",

@@ -42,6 +42,13 @@ from openjarvis.zeusex.commercial_batch import (
     CommercialBatchResult,
     CommercialBatchService,
 )
+from openjarvis.zeusex.commercial_opportunities import (
+    OpportunityAssessment,
+    PriceRecommendation,
+    assess_opportunity,
+    rank_opportunities,
+    recommend_price,
+)
 from openjarvis.zeusex.competitors import CompetitorComparison, compare_listings
 from openjarvis.zeusex.desktop_automation import allowed_applications, open_allowed_application
 from openjarvis.zeusex.diagnostics import DiagnosticResult, diagnose_provider
@@ -157,8 +164,10 @@ __all__ = [
     "NullSpeechCapture",
     "NullSpeechSynthesizer",
     "OllamaEngine",
+    "OpportunityAssessment",
     "PotentialAnalysis",
     "PotentialSignals",
+    "PriceRecommendation",
     "PWA_ICON_SVG",
     "PWA_MANIFEST",
     "PWA_SERVICE_WORKER",
@@ -194,6 +203,7 @@ __all__ = [
     "analyze_batch",
     "analyze_potential",
     "analyze_profit",
+    "assess_opportunity",
     "backup_android_databases",
     "build_analysis_360",
     "build_android_update_plan",
@@ -210,6 +220,8 @@ __all__ = [
     "generate_campaign",
     "generate_multichannel_content",
     "open_allowed_application",
+    "rank_opportunities",
+    "recommend_price",
     "serve_mobile_api",
     "suggest_combinations",
     "voice_status",

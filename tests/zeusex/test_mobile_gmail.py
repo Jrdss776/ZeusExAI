@@ -36,7 +36,7 @@ def test_mobile_gmail_lists_unread_messages_read_only(tmp_path) -> None:
     )
 
     assert response.status == 200
-    assert response.body["items"][0]["snippet"] == "is:unread"
+    assert response.body["items"][0]["snippet"] == "Preciso do seu retorno hoje."
 
 
 def test_mobile_gmail_preview_does_not_send(tmp_path) -> None:

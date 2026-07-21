@@ -1,5 +1,11 @@
 """Camada oficial de personalização do ZeusExAI."""
 
+from openjarvis.zeusex.achadinhos_pipeline import (
+    AchadinhosCampaignBatch,
+    AchadinhosCampaignItem,
+    AchadinhosSelectionPolicy,
+    build_achadinhos_campaigns,
+)
 from openjarvis.zeusex.analysis_360 import (
     Analysis360Report,
     analysis_360_from_mapping,
@@ -121,6 +127,9 @@ __all__ = [
     "ALLOWED_JOB_TYPES",
     "APIResponse",
     "AIEngine",
+    "AchadinhosCampaignBatch",
+    "AchadinhosCampaignItem",
+    "AchadinhosSelectionPolicy",
     "Analysis360Report",
     "AnalysisJob",
     "AnalysisQueue",
@@ -205,6 +214,7 @@ __all__ = [
     "analyze_profit",
     "assess_opportunity",
     "backup_android_databases",
+    "build_achadinhos_campaigns",
     "build_analysis_360",
     "build_android_update_plan",
     "build_engine",

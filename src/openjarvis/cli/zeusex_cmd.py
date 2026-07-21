@@ -12,6 +12,7 @@ from openjarvis.zeusex import ZEUSEX_IDENTITY
 from openjarvis.zeusex.analysis_360 import analysis_360_from_mapping
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker
+from openjarvis.zeusex.campaigns import campaign_from_mapping
 from openjarvis.zeusex.diagnostics import diagnose_provider
 from openjarvis.zeusex.engines import EngineSettings, build_engine
 from openjarvis.zeusex.marketplace_http import (
@@ -631,6 +632,46 @@ def marketplace_content(
             report,
             include_price=include_price,
         )
+    except (TypeError, ValueError, ArithmeticError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(
+        package.to_json()
+        if output_format == "json"
+        else package.to_markdown()
+    )
+
+
+@marketplace_group.command("campaign")
+@click.option(
+    "--preset",
+    type=click.Choice(["achadinhos-jr"], case_sensitive=False),
+    default="achadinhos-jr",
+    show_default=True,
+)
+@click.option("--payload", required=True, help="Análise 360 e catálogo opcional em JSON.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["markdown", "json"], case_sensitive=False),
+    default="markdown",
+    show_default=True,
+)
+def marketplace_campaign(
+    preset: str,
+    payload: str,
+    output_format: str,
+) -> None:
+    """Gera campanha reutilizável sem publicar conteúdo."""
+
+    del preset
+    try:
+        decoded = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise click.ClickException("O payload precisa ser um objeto JSON válido.") from exc
+    if not isinstance(decoded, dict):
+        raise click.ClickException("O payload precisa ser um objeto JSON.")
+    try:
+        package = campaign_from_mapping(decoded)
     except (TypeError, ValueError, ArithmeticError) as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(

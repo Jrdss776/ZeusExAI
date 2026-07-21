@@ -5,7 +5,6 @@ from __future__ import annotations
 from contextlib import closing
 from dataclasses import asdict, dataclass
 from pathlib import Path
-import gc
 import sqlite3
 import tempfile
 
@@ -68,7 +67,6 @@ def run_beta_smoke_test(*, base_dir: Path | str | None = None) -> BetaSmokeResul
             status_ok = "online" in runtime.handle("status").lower()
             steps.append(BetaSmokeStep("comando", status_ok, "Comando local validado."))
             del runtime
-            gc.collect()
         except Exception as exc:
             steps.append(
                 BetaSmokeStep(

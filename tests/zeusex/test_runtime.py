@@ -15,6 +15,17 @@ def test_runtime_persists_memories(tmp_path) -> None:
     assert reloaded.memories() == ["comprar ração"]
 
 
+def test_runtime_releases_database_for_immediate_cleanup(tmp_path) -> None:
+    data_dir = tmp_path / "runtime-close"
+    runtime = ZeusRuntime(config=RuntimeConfig(data_dir=data_dir))
+    runtime.remember("memória temporária")
+    del runtime
+
+    database = data_dir / "zeusex.db"
+    database.unlink()
+    assert database.exists() is False
+
+
 def test_runtime_delegates_to_engine_and_saves_history(tmp_path) -> None:
     captured: dict[str, object] = {}
 

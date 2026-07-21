@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,8 +89,17 @@ class ZeusRuntime:
         connection.row_factory = sqlite3.Row
         return connection
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        connection = self._connect()
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
+
     def _initialize_database(self) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS messages (
@@ -114,14 +124,14 @@ class ZeusRuntime:
         return datetime.now(timezone.utc).isoformat()
 
     def _store_message(self, role: str, content: str) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 "INSERT INTO messages(role, content, created_at) VALUES (?, ?, ?)",
                 (role, content, self._now()),
             )
 
     def recent_history(self) -> list[tuple[str, str]]:
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 """
                 SELECT role, content FROM messages
@@ -136,7 +146,7 @@ class ZeusRuntime:
         clean_content = content.strip()
         if not clean_content:
             return "Informe o que devo lembrar."
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 "INSERT INTO memories(content, created_at) VALUES (?, ?)",
                 (clean_content, self._now()),
@@ -144,7 +154,7 @@ class ZeusRuntime:
         return f"Memória registrada: {clean_content}"
 
     def memories(self, limit: int = 10) -> list[str]:
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 "SELECT content FROM memories ORDER BY id DESC LIMIT ?",
                 (max(1, limit),),

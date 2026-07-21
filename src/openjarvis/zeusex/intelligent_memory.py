@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,12 +43,21 @@ class IntelligentMemoryStore:
         connection.row_factory = sqlite3.Row
         return connection
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        connection = self._connect()
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
+
     @staticmethod
     def _now() -> str:
         return datetime.now(timezone.utc).isoformat()
 
     def _initialize(self) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS intelligent_memories (
@@ -93,7 +104,7 @@ class IntelligentMemoryStore:
             raise ValueError("importance precisa estar entre 1 e 5.")
         clean_project = project.strip() if project and project.strip() else None
         now = self._now()
-        with self._connect() as connection:
+        with self._connection() as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO intelligent_memories(
@@ -106,7 +117,7 @@ class IntelligentMemoryStore:
         return self.get(memory_id)
 
     def get(self, memory_id: int) -> IntelligentMemory:
-        with self._connect() as connection:
+        with self._connection() as connection:
             row = connection.execute(
                 "SELECT * FROM intelligent_memories WHERE id = ?", (memory_id,)
             ).fetchone()
@@ -131,7 +142,7 @@ class IntelligentMemoryStore:
             values.append(project.strip())
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         values.append(max(1, limit))
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 f"SELECT * FROM intelligent_memories{where} "
                 "ORDER BY importance DESC, id DESC LIMIT ?",
@@ -144,7 +155,7 @@ class IntelligentMemoryStore:
         if not clean_query:
             return []
         pattern = f"%{clean_query}%"
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 """
                 SELECT * FROM intelligent_memories

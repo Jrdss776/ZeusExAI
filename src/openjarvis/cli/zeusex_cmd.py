@@ -31,6 +31,7 @@ from openjarvis.zeusex.marketplace import (
     create_advertisement_draft,
 )
 from openjarvis.zeusex.mobile_api import MobileAPIService
+from openjarvis.zeusex.mobile_server import MobileServerConfig, serve_mobile_api
 from openjarvis.zeusex.multichannel import generate_multichannel_content
 from openjarvis.zeusex.report_store import AnalysisReportStore
 from openjarvis.zeusex.runtime import RuntimeConfig, ZeusRuntime
@@ -867,6 +868,31 @@ def mobile_api_command(method: str, path: str, body: str) -> None:
             sort_keys=True,
         )
     )
+
+
+@zeusex.command("mobile-serve")
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", type=click.IntRange(1024, 65535), default=8765, show_default=True)
+def mobile_serve(host: str, port: int) -> None:
+    """Inicia, por solicitação explícita, o painel apenas no próprio aparelho."""
+
+    token = os.getenv("ZEUSEX_MOBILE_API_TOKEN", "").strip()
+    if not token:
+        raise click.ClickException(
+            "Defina ZEUSEX_MOBILE_API_TOKEN com pelo menos 16 caracteres."
+        )
+    try:
+        config = MobileServerConfig(host=host, port=port)
+        service = _mobile_api_service()
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    click.echo(f"ZeusEXai Mobile disponível em http://{config.host}:{config.port}")
+    click.echo("Pressione Ctrl+C para encerrar.")
+    try:
+        serve_mobile_api(service, config)
+    except KeyboardInterrupt:
+        click.echo("\nServidor encerrado.")
 
 
 __all__ = ["zeusex"]

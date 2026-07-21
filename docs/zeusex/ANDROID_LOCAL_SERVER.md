@@ -57,3 +57,21 @@ Para encerrar, volte ao Termux e pressione `Ctrl+C`.
 - não salve o token em scripts versionados;
 - não altere o host para um IP externo;
 - o painel é uma fundação local, não um aplicativo Android nativo final.
+
+
+## Instalar o painel como PWA
+
+Com o servidor em execução, abra `http://127.0.0.1:8765` no navegador do
+mesmo aparelho. Quando o navegador oferecer a opção, escolha **Instalar
+aplicativo** ou **Adicionar à tela inicial**.
+
+A PWA:
+
+- usa manifesto e ícone servidos pelo próprio ZeusEXai;
+- funciona em modo visual independente quando o navegador oferecer suporte;
+- armazena em cache somente a estrutura visual;
+- nunca armazena respostas de `/v1`, relatórios ou o token;
+- continua dependendo do Termux e do servidor local em execução.
+
+Se o servidor estiver desligado, a tela pode abrir com a estrutura visual em
+cache, mas análises, campanhas, agenda e fila permanecerão indisponíveis.

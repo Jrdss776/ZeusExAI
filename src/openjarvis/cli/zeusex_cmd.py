@@ -25,6 +25,7 @@ from openjarvis.zeusex.marketplace import (
     analyze_profit,
     create_advertisement_draft,
 )
+from openjarvis.zeusex.multichannel import generate_multichannel_content
 from openjarvis.zeusex.report_store import AnalysisReportStore
 from openjarvis.zeusex.runtime import RuntimeConfig, ZeusRuntime
 from openjarvis.zeusex.setup_assistant import build_setup_plan
@@ -598,6 +599,44 @@ def marketplace_reports_show(report_id: int, output_format: str) -> None:
         json.dumps(report.report, ensure_ascii=False, indent=2, sort_keys=True)
         if output_format == "json"
         else report.markdown
+    )
+
+
+@marketplace_group.command("content")
+@click.option("--payload", required=True, help="Objeto JSON aceito pela Análise 360.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["markdown", "json"], case_sensitive=False),
+    default="markdown",
+    show_default=True,
+)
+@click.option("--include-price/--omit-price", default=True, show_default=True)
+def marketplace_content(
+    payload: str,
+    output_format: str,
+    include_price: bool,
+) -> None:
+    """Gera conteúdo para marketplaces, redes sociais e vídeos."""
+
+    try:
+        decoded = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise click.ClickException("O payload precisa ser um objeto JSON válido.") from exc
+    if not isinstance(decoded, dict):
+        raise click.ClickException("O payload precisa ser um objeto JSON.")
+    try:
+        report = analysis_360_from_mapping(decoded)
+        package = generate_multichannel_content(
+            report,
+            include_price=include_price,
+        )
+    except (TypeError, ValueError, ArithmeticError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(
+        package.to_json()
+        if output_format == "json"
+        else package.to_markdown()
     )
 
 

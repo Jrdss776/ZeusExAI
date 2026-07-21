@@ -41,7 +41,30 @@ class GmailAPI:
             if verb == "GET" and route == "/v1/integrations/gmail/messages":
                 limit = int(params["limit"]) if params.get("limit") else None
                 messages = self.service.list_messages(query=params.get("q"), limit=limit)
-                return GmailAPIResponse(200, {"ok": True, "items": [item.to_dict() for item in messages]})
+                return GmailAPIResponse(
+                    200,
+                    {
+                        "ok": True,
+                        "items": [item.to_dict() for item in messages],
+                        "summaries": [self.service.summarize(item) for item in messages],
+                    },
+                )
+            if verb == "GET" and route == "/v1/integrations/gmail/triage":
+                limit = int(params["limit"]) if params.get("limit") else None
+                messages = self.service.list_messages(
+                    query=params.get("q") or "in:inbox",
+                    limit=limit,
+                )
+                items = self.service.triage(messages)
+                return GmailAPIResponse(
+                    200,
+                    {
+                        "ok": True,
+                        "items": [item.to_dict() for item in items],
+                        "total": len(items),
+                        "requires_reply": sum(item.requires_reply for item in items),
+                    },
+                )
             if verb == "POST" and route == "/v1/integrations/gmail/drafts/preview":
                 recipients = payload.get("recipients") or []
                 if not isinstance(recipients, Sequence) or isinstance(recipients, (str, bytes)):

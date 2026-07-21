@@ -160,3 +160,36 @@ def test_marketplace_content_generates_all_channels() -> None:
     assert '"instagram"' in result.output
     assert '"duration_seconds": 60' in result.output
     assert "Material: mandioca" in result.output
+
+
+def test_achadinhos_jr_campaign_includes_safe_combinations() -> None:
+    payload = (
+        '{"product":{"name":"Areia","marketplace":"shopee",'
+        '"sale_price":"49.90","product_cost":"25"},'
+        '"attributes":{"Material":"mandioca"},'
+        '"catalog":['
+        '{"name":"Areia","category":"higiene","price":"49.90",'
+        '"kit_group":"limpeza","complements":["Pá"]},'
+        '{"name":"Pá","category":"higiene","price":"59.90",'
+        '"kit_group":"limpeza"}]}'
+    )
+    result = CliRunner().invoke(
+        zeusex,
+        [
+            "marketplace",
+            "campaign",
+            "--preset",
+            "achadinhos-jr",
+            "--payload",
+            payload,
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Achadinhos do JR" in result.output
+    assert '"kind": "kit"' in result.output
+    assert '"kind": "upsell"' in result.output
+    assert '"kind": "cross_sell"' in result.output
+    assert "Material: mandioca" in result.output

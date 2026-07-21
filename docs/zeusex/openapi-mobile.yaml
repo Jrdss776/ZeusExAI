@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: ZeusEXai Mobile API
+  version: 0.1.0
+  description: >-
+    Contrato local para o futuro aplicativo Android. A implementação atual é
+    uma camada de serviço sem listener de rede. Operações de publicação,
+    compras, mensagens e shell não fazem parte desta API.
+servers:
+  - url: http://127.0.0.1
+    description: Referência futura; nenhum servidor é iniciado atualmente.
+paths:
+  /v1/status:
+    get:
+      summary: Verifica a disponibilidade da camada local
+      responses:
+        "200":
+          description: Serviço disponível
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /v1/reports:
+    get:
+      summary: Lista relatórios comerciais salvos
+      security:
+        - localBearer: []
+      responses:
+        "200":
+          description: Lista de relatórios
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/campaign-templates:
+    get:
+      summary: Lista modelos de campanha locais
+      security:
+        - localBearer: []
+      responses:
+        "200":
+          description: Lista de modelos
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/analysis360:
+    post:
+      summary: Executa uma Análise 360 com dados fornecidos
+      security:
+        - localBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product]
+              properties:
+                save:
+                  type: boolean
+                  default: false
+                product:
+                  type: object
+                  additionalProperties: true
+                attributes:
+                  type: object
+                  additionalProperties:
+                    type: string
+                signals:
+                  type: object
+                  additionalProperties: true
+                competitors:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+      responses:
+        "200":
+          description: Análise criada sem persistência
+        "201":
+          description: Análise criada e salva
+        "400":
+          description: Dados inválidos
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/schedules:
+    post:
+      summary: Agenda uma tarefa local permitida
+      security:
+        - localBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [job_type, scheduled_for, payload]
+              properties:
+                job_type:
+                  type: string
+                  enum: [analysis360, campaign, marketplace_queue]
+                scheduled_for:
+                  type: string
+                  format: date-time
+                payload:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "201":
+          description: Tarefa agendada
+        "400":
+          description: Tipo ou dados inválidos
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+components:
+  securitySchemes:
+    localBearer:
+      type: http
+      scheme: bearer
+  responses:
+    Unauthorized:
+      description: Token local ausente ou inválido
+  schemas:
+    StatusResponse:
+      type: object
+      required: [ok, service, network_listener]
+      properties:
+        ok:
+          type: boolean
+        service:
+          type: string
+        network_listener:
+          type: boolean
+          const: false

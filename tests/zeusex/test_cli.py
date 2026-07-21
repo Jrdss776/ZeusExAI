@@ -193,3 +193,71 @@ def test_achadinhos_jr_campaign_includes_safe_combinations() -> None:
     assert '"kind": "upsell"' in result.output
     assert '"kind": "cross_sell"' in result.output
     assert "Material: mandioca" in result.output
+
+
+def test_template_scheduler_and_mobile_api_cli(tmp_path) -> None:
+    runner = CliRunner()
+    env = {"ZEUSEX_DATA_DIR": str(tmp_path)}
+
+    template = runner.invoke(
+        zeusex,
+        [
+            "marketplace",
+            "templates",
+            "save",
+            "--name",
+            "campanha-local",
+            "--brand",
+            "Minha Marca",
+            "--call-to-action",
+            "Confira o anúncio.",
+        ],
+        env=env,
+    )
+    scheduled = runner.invoke(
+        zeusex,
+        [
+            "schedule",
+            "add",
+            "--type",
+            "analysis360",
+            "--at",
+            "2030-01-01T12:00:00-03:00",
+            "--payload",
+            '{"product_id":1}',
+        ],
+        env=env,
+    )
+    mobile = runner.invoke(
+        zeusex,
+        ["mobile-api", "GET", "/v1/status"],
+        env=env,
+    )
+
+    assert template.exit_code == 0
+    assert "campanha-local" in template.output
+    assert scheduled.exit_code == 0
+    assert "analysis360" in scheduled.output
+    assert mobile.exit_code == 0
+    assert '"network_listener": false' in mobile.output
+    assert '"status": 200' in mobile.output
+
+
+def test_scheduler_cli_does_not_offer_shell_job(tmp_path) -> None:
+    result = CliRunner().invoke(
+        zeusex,
+        [
+            "schedule",
+            "add",
+            "--type",
+            "shell",
+            "--at",
+            "2030-01-01T12:00:00-03:00",
+            "--payload",
+            '{"command":"unsafe"}',
+        ],
+        env={"ZEUSEX_DATA_DIR": str(tmp_path)},
+    )
+
+    assert result.exit_code != 0
+    assert "Invalid value" in result.output

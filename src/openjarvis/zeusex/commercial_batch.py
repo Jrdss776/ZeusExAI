@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from openjarvis.zeusex.commercial_analysis import (
     CommercialAnalysisResult,
@@ -15,11 +15,12 @@ from openjarvis.zeusex.marketplace_ingestion import (
     IngestionBatch,
     MarketplaceIngestionService,
 )
+from openjarvis.zeusex.marketplace_listings import NormalizedListing
 
 
 @dataclass(frozen=True, slots=True)
 class CommercialBatchRequest:
-    """Entrada de lote com custos e sinais associados pelo identificador do anúncio."""
+    """Entrada de lote com evidências associadas pelo identificador do anúncio."""
 
     marketplace: str
     payload: Mapping[str, Any]
@@ -27,6 +28,7 @@ class CommercialBatchRequest:
     default_costs: CommercialCosts | None = None
     attributes_by_listing: Mapping[str, Mapping[str, str]] | None = None
     signals_by_listing: Mapping[str, PotentialSignals] | None = None
+    competitors_by_listing: Mapping[str, Sequence[NormalizedListing]] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +59,7 @@ class CommercialBatchService:
         ingestion = self._ingestion.ingest(request.marketplace, request.payload)
         attributes = request.attributes_by_listing or {}
         signals = request.signals_by_listing or {}
+        competitors = request.competitors_by_listing or {}
 
         analyses: list[CommercialAnalysisResult] = []
         for listing in ingestion.listings:
@@ -75,6 +78,7 @@ class CommercialBatchService:
                     costs,
                     attributes=attributes.get(listing.listing_id),
                     signals=signals.get(listing.listing_id),
+                    competitors=tuple(competitors.get(listing.listing_id, ())),
                 )
             )
 

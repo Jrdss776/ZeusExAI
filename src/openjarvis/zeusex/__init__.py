@@ -65,6 +65,11 @@ from openjarvis.zeusex.multichannel import (
     VideoScript,
     generate_multichannel_content,
 )
+from openjarvis.zeusex.pwa_assets import (
+    PWA_ICON_SVG,
+    PWA_MANIFEST,
+    PWA_SERVICE_WORKER,
+)
 from openjarvis.zeusex.report_store import AnalysisReportStore, SavedAnalysis
 from openjarvis.zeusex.runtime import AIEngine, CallableEngine, DisabledEngine, RuntimeConfig, ZeusRuntime
 from openjarvis.zeusex.schedule_executor import ScheduleExecutor, ScheduleOutcome
@@ -123,6 +128,9 @@ __all__ = [
     "OllamaEngine",
     "PotentialAnalysis",
     "PotentialSignals",
+    "PWA_ICON_SVG",
+    "PWA_MANIFEST",
+    "PWA_SERVICE_WORKER",
     "ProductInput",
     "ProfitAnalysis",
     "OpenAICompatibleEngine",

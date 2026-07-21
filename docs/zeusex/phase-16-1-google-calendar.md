@@ -65,6 +65,16 @@ O dashboard inteligente agora inclui:
 
 Com a integração desativada, nenhuma consulta externa é iniciada.
 
+### Painel móvel local
+
+A PWA local oferece controles autenticados para consultar o status, listar os
+próximos sete dias e revisar uma proposta de evento. O formulário mantém os
+dados apenas na memória da página e não usa `localStorage` ou `sessionStorage`.
+
+Por segurança, o servidor móvel não expõe a rota de criação real. A prévia pode
+ser revisada no aparelho, mas a ação externa continuará dependendo de uma
+aplicação hospedeira em modo `read_write` e de confirmação explícita.
+
 ## Segurança
 
 O módulo nunca:
@@ -79,5 +89,5 @@ O módulo nunca:
 
 1. implementar adaptador OAuth opcional em pacote separado;
 2. adicionar armazenamento seguro de credenciais fornecido pelo sistema operacional;
-3. implementar uma interface visual para revisar a pré-visualização;
+3. implementar o adaptador OAuth em pacote opcional;
 4. avançar para Gmail e Google Drive mantendo o mesmo contrato de permissão.

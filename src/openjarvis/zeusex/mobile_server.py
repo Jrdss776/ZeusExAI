@@ -123,6 +123,22 @@ DASHBOARD_HTML = """<!doctype html>
     </div>
   </section>
   <section>
+    <h2>Google Calendar</h2>
+    <p class="muted">Integração opcional. A prévia é local e nunca cria o evento.</p>
+    <label for="calendar-payload">Evento para revisão em JSON</label>
+    <textarea id="calendar-payload">{
+  "title": "Planejamento ZeusExAI",
+  "start": "2026-07-22T09:00:00-03:00",
+  "end": "2026-07-22T10:00:00-03:00",
+  "location": "Online"
+}</textarea>
+    <div class="actions">
+      <button data-action="calendarStatus">Status do calendário</button>
+      <button data-action="calendarEvents">Próximos 7 dias</button>
+      <button data-action="calendarPreview">Revisar prévia local</button>
+    </div>
+  </section>
+  <section>
     <h2>Resposta</h2>
     <p class="muted">Os dados abaixo permanecem neste aparelho.</p>
     <pre id="result">Pronto.</pre>
@@ -136,12 +152,22 @@ DASHBOARD_HTML = """<!doctype html>
     reports: ["GET", "/v1/reports", null],
     schedules: ["GET", "/v1/schedules", null],
     queue: ["GET", "/v1/queue", null],
-    templates: ["GET", "/v1/campaign-templates", null]
+    templates: ["GET", "/v1/campaign-templates", null],
+    calendarStatus: ["GET", "/v1/integrations/google-calendar/status", null],
+    calendarEvents: ["GET", "/v1/integrations/google-calendar/events", null],
+    calendarPreview: ["POST", "/v1/integrations/google-calendar/events/preview", "calendar-payload"]
   };
 
   async function callAPI(action) {
     const route = routes[action];
     const token = document.getElementById("token").value;
+    let url = route[1];
+    if (action === "calendarEvents") {
+      const start = new Date();
+      const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+      url += "?time_min=" + encodeURIComponent(start.toISOString());
+      url += "&time_max=" + encodeURIComponent(end.toISOString());
+    }
     const options = {
       method: route[0],
       headers: {Authorization: "Bearer " + token}
@@ -159,7 +185,7 @@ DASHBOARD_HTML = """<!doctype html>
     }
     result.textContent = "Processando localmente...";
     try {
-      const response = await fetch(route[1], options);
+      const response = await fetch(url, options);
       result.textContent = JSON.stringify(await response.json(), null, 2);
     } catch (error) {
       result.textContent = "Falha local: " + error.name;

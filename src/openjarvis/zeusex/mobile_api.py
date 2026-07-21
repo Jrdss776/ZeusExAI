@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Mapping, Sequence
+from urllib.parse import parse_qs, urlsplit
 
 from openjarvis.zeusex.achadinhos_pipeline import (
     AchadinhosSelectionPolicy,
@@ -20,6 +21,8 @@ from openjarvis.zeusex.commercial_batch import (
     CommercialBatchRequest,
     CommercialBatchService,
 )
+from openjarvis.zeusex.google_calendar import GoogleCalendarService
+from openjarvis.zeusex.google_calendar_api import GoogleCalendarAPI
 from openjarvis.zeusex.marketplace import PotentialSignals
 from openjarvis.zeusex.report_store import AnalysisReportStore
 from openjarvis.zeusex.scheduler import SafeScheduler
@@ -163,12 +166,14 @@ class MobileAPIService:
         *,
         queue: AnalysisQueue | None = None,
         authenticator: LocalAPIAuthenticator | None = None,
+        calendar_api: GoogleCalendarAPI | None = None,
     ) -> None:
         self.reports = reports
         self.templates = templates
         self.scheduler = scheduler
         self.queue = queue
         self.authenticator = authenticator
+        self.calendar_api = calendar_api or GoogleCalendarAPI(GoogleCalendarService())
 
     @staticmethod
     def _error(status: int, message: str) -> APIResponse:
@@ -194,7 +199,12 @@ class MobileAPIService:
         headers: Mapping[str, str] | None = None,
     ) -> APIResponse:
         verb = method.strip().upper()
-        route = "/" + path.strip("/")
+        parsed = urlsplit(path)
+        route = "/" + parsed.path.strip("/")
+        query = {
+            key: values[-1]
+            for key, values in parse_qs(parsed.query, keep_blank_values=True).items()
+        }
 
         try:
             if verb == "GET" and route == "/v1/status":
@@ -210,6 +220,21 @@ class MobileAPIService:
             blocked = self._authorize(headers)
             if blocked is not None:
                 return blocked
+
+            if route == "/v1/integrations/google-calendar/status" and verb == "GET":
+                response = self.calendar_api.dispatch(verb, route)
+                return APIResponse(response.status, response.body)
+
+            if route == "/v1/integrations/google-calendar/events" and verb == "GET":
+                response = self.calendar_api.dispatch(verb, route, query=query)
+                return APIResponse(response.status, response.body)
+
+            if (
+                route == "/v1/integrations/google-calendar/events/preview"
+                and verb == "POST"
+            ):
+                response = self.calendar_api.dispatch(verb, route, body)
+                return APIResponse(response.status, response.body)
 
             if verb == "GET" and route == "/v1/reports":
                 reports = self.reports.list()

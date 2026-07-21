@@ -10,6 +10,7 @@ OAuth, SDK obrigatório ou persistência de credenciais no núcleo.
 - pesquisa limitada de arquivos;
 - consulta de metadados por identificador;
 - estado sanitizado do conector.
+- pesquisa visual de metadados no painel móvel local.
 
 ```text
 GET /v1/integrations/google-drive/status
@@ -21,10 +22,13 @@ O módulo não baixa conteúdo, cria pastas, envia arquivos, compartilha, move,
 renomeia, edita ou exclui itens. Identificadores e consultas são validados antes
 de chegar ao conector fornecido pela aplicação hospedeira.
 
+O painel móvel encaminha apenas as rotas GET de status, pesquisa e metadados.
+Não há controles ou rotas móveis de mutação, e o termo pesquisado não é salvo no
+navegador.
+
 ## Próximos passos
 
 1. adaptador OAuth opcional em pacote separado;
 2. armazenamento de credenciais pelo sistema operacional;
-3. pesquisa visual de metadados no painel móvel;
-4. pré-visualização explícita antes de qualquer download futuro;
-5. política separada para upload, compartilhamento e exclusão.
+3. pré-visualização explícita antes de qualquer download futuro;
+4. política separada para upload, compartilhamento e exclusão.

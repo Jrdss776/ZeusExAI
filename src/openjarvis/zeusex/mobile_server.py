@@ -154,6 +154,16 @@ DASHBOARD_HTML = """<!doctype html>
     </div>
   </section>
   <section>
+    <h2>Google Drive</h2>
+    <p class="muted">Pesquisa somente metadados. O painel não baixa, envia, altera ou exclui arquivos.</p>
+    <label for="drive-query">Nome ou termo para pesquisa</label>
+    <input id="drive-query" type="search" maxlength="500" placeholder="Ex.: relatório de vendas">
+    <div class="actions">
+      <button data-action="driveStatus">Status do Drive</button>
+      <button data-action="driveSearch">Pesquisar metadados</button>
+    </div>
+  </section>
+  <section>
     <h2>Resposta</h2>
     <p class="muted">Os dados abaixo permanecem neste aparelho.</p>
     <pre id="result">Pronto.</pre>
@@ -173,7 +183,9 @@ DASHBOARD_HTML = """<!doctype html>
     calendarPreview: ["POST", "/v1/integrations/google-calendar/events/preview", "calendar-payload"],
     gmailStatus: ["GET", "/v1/integrations/gmail/status", null],
     gmailUnread: ["GET", "/v1/integrations/gmail/messages?q=is%3Aunread", null],
-    gmailPreview: ["POST", "/v1/integrations/gmail/drafts/preview", "gmail-payload"]
+    gmailPreview: ["POST", "/v1/integrations/gmail/drafts/preview", "gmail-payload"],
+    driveStatus: ["GET", "/v1/integrations/google-drive/status", null],
+    driveSearch: ["GET", "/v1/integrations/google-drive/files", null]
   };
 
   async function callAPI(action) {
@@ -185,6 +197,10 @@ DASHBOARD_HTML = """<!doctype html>
       const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
       url += "?time_min=" + encodeURIComponent(start.toISOString());
       url += "&time_max=" + encodeURIComponent(end.toISOString());
+    }
+    if (action === "driveSearch") {
+      const query = document.getElementById("drive-query").value.trim();
+      if (query) url += "?q=" + encodeURIComponent(query);
     }
     const options = {
       method: route[0],

@@ -31,6 +31,17 @@ from openjarvis.zeusex.campaigns import (
     generate_campaign,
     suggest_combinations,
 )
+from openjarvis.zeusex.commercial_analysis import (
+    CommercialAnalysisRequest,
+    CommercialAnalysisResult,
+    CommercialAnalysisService,
+    CommercialCosts,
+)
+from openjarvis.zeusex.commercial_batch import (
+    CommercialBatchRequest,
+    CommercialBatchResult,
+    CommercialBatchService,
+)
 from openjarvis.zeusex.competitors import CompetitorComparison, compare_listings
 from openjarvis.zeusex.desktop_automation import allowed_applications, open_allowed_application
 from openjarvis.zeusex.diagnostics import DiagnosticResult, diagnose_provider
@@ -46,12 +57,6 @@ from openjarvis.zeusex.marketplace import (
     analyze_potential,
     analyze_profit,
     create_advertisement_draft,
-)
-from openjarvis.zeusex.commercial_analysis import (
-    CommercialAnalysisRequest,
-    CommercialAnalysisResult,
-    CommercialAnalysisService,
-    CommercialCosts,
 )
 from openjarvis.zeusex.marketplace_http import (
     HTTPClientConfig,
@@ -126,6 +131,9 @@ __all__ = [
     "CommercialAnalysisRequest",
     "CommercialAnalysisResult",
     "CommercialAnalysisService",
+    "CommercialBatchRequest",
+    "CommercialBatchResult",
+    "CommercialBatchService",
     "CommercialCosts",
     "CatalogItem",
     "CallableEngine",

@@ -4,13 +4,23 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
+from openjarvis.zeusex.achadinhos_pipeline import (
+    AchadinhosSelectionPolicy,
+    build_achadinhos_campaigns,
+)
 from openjarvis.zeusex.analysis_360 import analysis_360_from_mapping
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
 from openjarvis.zeusex.auth import LocalAPIAuthenticator
 from openjarvis.zeusex.campaign_store import CampaignTemplateStore
-from openjarvis.zeusex.campaigns import campaign_from_mapping
+from openjarvis.zeusex.campaigns import CatalogItem, campaign_from_mapping
+from openjarvis.zeusex.commercial_analysis import CommercialCosts
+from openjarvis.zeusex.commercial_batch import (
+    CommercialBatchRequest,
+    CommercialBatchService,
+)
+from openjarvis.zeusex.marketplace import PotentialSignals
 from openjarvis.zeusex.report_store import AnalysisReportStore
 from openjarvis.zeusex.scheduler import SafeScheduler
 
@@ -19,6 +29,127 @@ from openjarvis.zeusex.scheduler import SafeScheduler
 class APIResponse:
     status: int
     body: dict[str, Any]
+
+
+def _mapping(value: object, *, field: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{field} precisa ser um objeto.")
+    return value
+
+
+def _mapping_of_mappings(value: object, *, field: str) -> dict[str, Mapping[str, Any]]:
+    source = _mapping(value, field=field)
+    result: dict[str, Mapping[str, Any]] = {}
+    for key, item in source.items():
+        result[str(key)] = _mapping(item, field=f"{field}.{key}")
+    return result
+
+
+def _sequence_of_mappings(value: object, *, field: str) -> tuple[Mapping[str, Any], ...]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+        raise ValueError(f"{field} precisa ser uma lista.")
+    result: list[Mapping[str, Any]] = []
+    for index, item in enumerate(value):
+        result.append(_mapping(item, field=f"{field}[{index}]"))
+    return tuple(result)
+
+
+def _achadinhos_request(payload: Mapping[str, Any]) -> tuple[
+    CommercialBatchRequest,
+    AchadinhosSelectionPolicy,
+    dict[str, tuple[CatalogItem, ...]],
+]:
+    marketplace = str(payload.get("marketplace") or "")
+    marketplace_payload = _mapping(payload.get("payload"), field="payload")
+
+    raw_costs = _mapping_of_mappings(
+        payload.get("costs_by_listing") or {},
+        field="costs_by_listing",
+    )
+    costs_by_listing = {
+        listing_id: CommercialCosts(**dict(costs))
+        for listing_id, costs in raw_costs.items()
+    }
+
+    default_costs_data = payload.get("default_costs")
+    default_costs = (
+        CommercialCosts(**dict(_mapping(default_costs_data, field="default_costs")))
+        if default_costs_data is not None
+        else None
+    )
+
+    raw_attributes = _mapping_of_mappings(
+        payload.get("attributes_by_listing") or {},
+        field="attributes_by_listing",
+    )
+    attributes_by_listing = {
+        listing_id: {str(key): str(value) for key, value in attributes.items()}
+        for listing_id, attributes in raw_attributes.items()
+    }
+
+    raw_signals = _mapping_of_mappings(
+        payload.get("signals_by_listing") or {},
+        field="signals_by_listing",
+    )
+    signals_by_listing = {
+        listing_id: PotentialSignals(**dict(signals))
+        for listing_id, signals in raw_signals.items()
+    }
+
+    raw_competitors = _mapping(
+        payload.get("competitors_by_listing") or {},
+        field="competitors_by_listing",
+    )
+    competitors_by_listing = {
+        str(listing_id): _sequence_of_mappings(
+            competitors,
+            field=f"competitors_by_listing.{listing_id}",
+        )
+        for listing_id, competitors in raw_competitors.items()
+    }
+
+    policy_data = _mapping(payload.get("policy") or {}, field="policy")
+    normalized_policy = dict(policy_data)
+    allowed = normalized_policy.get("allowed_classifications")
+    if allowed is not None:
+        if not isinstance(allowed, Sequence) or isinstance(allowed, (str, bytes, bytearray)):
+            raise ValueError("policy.allowed_classifications precisa ser uma lista.")
+        normalized_policy["allowed_classifications"] = frozenset(str(item) for item in allowed)
+    policy = AchadinhosSelectionPolicy(**normalized_policy)
+
+    raw_catalog = _mapping(
+        payload.get("catalog_by_listing") or {},
+        field="catalog_by_listing",
+    )
+    catalog_by_listing: dict[str, tuple[CatalogItem, ...]] = {}
+    for listing_id, items in raw_catalog.items():
+        catalog_items = []
+        for index, item in enumerate(
+            _sequence_of_mappings(items, field=f"catalog_by_listing.{listing_id}")
+        ):
+            normalized = dict(item)
+            complements = normalized.get("complements") or ()
+            if not isinstance(complements, Sequence) or isinstance(
+                complements,
+                (str, bytes, bytearray),
+            ):
+                raise ValueError(
+                    f"catalog_by_listing.{listing_id}[{index}].complements precisa ser uma lista."
+                )
+            normalized["complements"] = tuple(str(value) for value in complements)
+            catalog_items.append(CatalogItem(**normalized))
+        catalog_by_listing[str(listing_id)] = tuple(catalog_items)
+
+    request = CommercialBatchRequest(
+        marketplace=marketplace,
+        payload=marketplace_payload,
+        costs_by_listing=costs_by_listing,
+        default_costs=default_costs,
+        attributes_by_listing=attributes_by_listing,
+        signals_by_listing=signals_by_listing,
+        competitors_by_listing=competitors_by_listing,
+    )
+    return request, policy, catalog_by_listing
 
 
 class MobileAPIService:
@@ -170,6 +301,22 @@ class MobileAPIService:
                     {
                         "ok": True,
                         "campaign": package.to_dict(),
+                    },
+                )
+
+            if verb == "POST" and route == "/v1/achadinhos":
+                request, policy, catalog = _achadinhos_request(dict(body or {}))
+                analyses = CommercialBatchService().analyze(request)
+                campaigns = build_achadinhos_campaigns(
+                    analyses,
+                    policy=policy,
+                    catalog_by_listing=catalog,
+                )
+                return APIResponse(
+                    200,
+                    {
+                        "ok": True,
+                        "achadinhos": campaigns.to_dict(),
                     },
                 )
 

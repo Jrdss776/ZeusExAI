@@ -76,7 +76,26 @@ class CommercialAnalysisService:
 
         listing = adapter.normalize(request.listing)
         competitors = tuple(adapter.normalize(item) for item in request.competitors)
-        costs = request.costs
+        return self.analyze_normalized(
+            listing,
+            request.costs,
+            attributes=request.attributes,
+            signals=request.signals,
+            competitors=competitors,
+        )
+
+    def analyze_normalized(
+        self,
+        listing: NormalizedListing,
+        costs: CommercialCosts,
+        *,
+        attributes: Mapping[str, str] | None = None,
+        signals: PotentialSignals | None = None,
+        competitors: Sequence[NormalizedListing] = (),
+    ) -> CommercialAnalysisResult:
+        """Analisa um anúncio já normalizado sem repetir parsing de marketplace."""
+
+        normalized_competitors = tuple(competitors)
         product = ProductInput(
             name=listing.title,
             marketplace=listing.marketplace,
@@ -89,11 +108,11 @@ class CommercialAnalysisService:
         )
         report = build_analysis_360(
             product,
-            attributes=request.attributes,
-            signals=request.signals,
-            competitors=competitors,
+            attributes=attributes,
+            signals=signals,
+            competitors=normalized_competitors,
         )
-        return CommercialAnalysisResult(listing, competitors, report)
+        return CommercialAnalysisResult(listing, normalized_competitors, report)
 
 
 __all__ = [

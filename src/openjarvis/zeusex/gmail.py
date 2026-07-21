@@ -42,6 +42,24 @@ class GmailMessage:
 
 
 @dataclass(frozen=True, slots=True)
+class GmailTriageItem:
+    message: GmailMessage
+    category: str
+    reason: str
+    requires_reply: bool
+    summary: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "message": self.message.to_dict(),
+            "category": self.category,
+            "reason": self.reason,
+            "requires_reply": self.requires_reply,
+            "summary": self.summary,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class GmailDraftPreview:
     recipients: tuple[str, ...]
     subject: str
@@ -94,9 +112,26 @@ class DisabledGmailConnector:
 
 
 class GmailService:
-    """Aplica limites e confirmação sem conhecer OAuth ou SDK Google."""
+    """Aplica limites, triagem e confirmação sem conhecer OAuth ou SDK Google."""
 
     _EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+    _URGENT_TERMS = (
+        "urgente",
+        "prazo",
+        "vencimento",
+        "hoje",
+        "amanhã",
+        "acao necessaria",
+        "ação necessária",
+    )
+    _REPLY_TERMS = (
+        "responda",
+        "retorno",
+        "confirma",
+        "pode enviar",
+        "aguardo",
+        "preciso de você",
+    )
 
     def __init__(
         self,
@@ -127,6 +162,46 @@ class GmailService:
             raise ValueError("A consulta do Gmail não pode exceder 500 caracteres.")
         bounded = min(max(1, limit or self.config.max_results), self.config.max_results)
         return list(self.connector.list_messages(query=clean_query, max_results=bounded))[:bounded]
+
+    @staticmethod
+    def summarize(message: GmailMessage, *, max_length: int = 240) -> str:
+        limit = max(40, min(int(max_length), 1000))
+        snippet = message.snippet.strip()
+        if not snippet:
+            return f"{message.subject or '(sem assunto)'} — mensagem sem prévia disponível."
+        text = snippet if len(snippet) <= limit else snippet[: limit - 1].rstrip() + "…"
+        return f"{message.subject or '(sem assunto)'} — {text}"
+
+    def triage(self, messages: Sequence[GmailMessage]) -> tuple[GmailTriageItem, ...]:
+        items: list[GmailTriageItem] = []
+        for message in messages:
+            haystack = f"{message.subject} {message.snippet}".casefold()
+            urgent = any(term in haystack for term in self._URGENT_TERMS)
+            requires_reply = urgent or any(term in haystack for term in self._REPLY_TERMS)
+            if urgent:
+                category = "urgent"
+                reason = "Contém termo de urgência ou prazo."
+            elif requires_reply:
+                category = "needs_reply"
+                reason = "Indica solicitação de retorno ou confirmação."
+            elif message.unread:
+                category = "unread"
+                reason = "Mensagem ainda não lida."
+            else:
+                category = "fyi"
+                reason = "Sem sinal explícito de urgência ou resposta necessária."
+            items.append(
+                GmailTriageItem(
+                    message=message,
+                    category=category,
+                    reason=reason,
+                    requires_reply=requires_reply,
+                    summary=self.summarize(message),
+                )
+            )
+        order = {"urgent": 0, "needs_reply": 1, "unread": 2, "fyi": 3}
+        items.sort(key=lambda item: (order[item.category], item.message.received_at))
+        return tuple(items)
 
     def preview_draft(
         self,
@@ -164,4 +239,5 @@ __all__ = [
     "GmailDraftPreview",
     "GmailMessage",
     "GmailService",
+    "GmailTriageItem",
 ]

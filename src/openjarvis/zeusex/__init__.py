@@ -35,6 +35,11 @@ from openjarvis.zeusex.beta_readiness import (
     BetaReadinessReport,
     assess_beta_readiness,
 )
+from openjarvis.zeusex.beta_support import (
+    BetaSupportSnapshot,
+    build_beta_support_snapshot,
+    write_beta_support_report,
+)
 from openjarvis.zeusex.campaign_store import (
     CampaignTemplateStore,
     SavedCampaignTemplate,
@@ -203,6 +208,7 @@ __all__ = [
     "BackupVerification",
     "BetaReadinessCheck",
     "BetaReadinessReport",
+    "BetaSupportSnapshot",
     "CampaignPackage",
     "CampaignTemplate",
     "CampaignTemplateStore",
@@ -319,6 +325,7 @@ __all__ = [
     "build_android_update_plan",
     "check_android_health",
     "build_engine",
+    "build_beta_support_snapshot",
     "build_google_oauth_setup_plan",
     "campaign_from_mapping",
     "compare_listings",
@@ -340,4 +347,5 @@ __all__ = [
     "suggest_combinations",
     "verify_android_backup",
     "voice_status",
+    "write_beta_support_report",
 ]

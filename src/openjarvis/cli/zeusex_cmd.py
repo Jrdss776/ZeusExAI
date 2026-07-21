@@ -24,6 +24,10 @@ from openjarvis.zeusex.android_support import (
 )
 from openjarvis.zeusex.auth import LocalAPIAuthenticator
 from openjarvis.zeusex.beta_readiness import assess_beta_readiness
+from openjarvis.zeusex.beta_support import (
+    build_beta_support_snapshot,
+    write_beta_support_report,
+)
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker
 from openjarvis.zeusex.campaign_store import CampaignTemplateStore
@@ -114,6 +118,28 @@ def beta_readiness() -> None:
     )
     if not report.ready:
         raise click.exceptions.Exit(1)
+
+
+@zeusex.command("beta-report")
+@click.option(
+    "--output",
+    type=click.Path(path_type=str),
+    default="zeusex-beta-report.json",
+    show_default=True,
+)
+@click.option("--replace", is_flag=True, help="Substitui um relatório existente.")
+def beta_report(output: str, replace: bool) -> None:
+    """Gera um relatório sanitizado para suporte da Beta."""
+
+    try:
+        target = write_beta_support_report(
+            build_beta_support_snapshot(),
+            output,
+            replace=replace,
+        )
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Relatório Beta salvo em: {target}")
 
 
 @zeusex.command("setup-plan")

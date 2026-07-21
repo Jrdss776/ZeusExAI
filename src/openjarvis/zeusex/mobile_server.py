@@ -73,6 +73,47 @@ DASHBOARD_HTML = """<!doctype html>
     </div>
   </section>
   <section>
+    <h2>Achadinhos do JR</h2>
+    <p class="muted">Analisa um lote, ranqueia oportunidades e gera campanhas apenas para os itens aprovados.</p>
+    <label for="achadinhos-payload">Lote comercial e política de seleção em JSON</label>
+    <textarea id="achadinhos-payload">{
+  "marketplace": "shopee",
+  "payload": {
+    "items": [
+      {"item_id": 10, "name": "Produto de exemplo", "price": "79.90"}
+    ]
+  },
+  "costs_by_listing": {
+    "10": {
+      "product_cost": "35",
+      "marketplace_fee_percent": "12",
+      "tax_percent": "4"
+    }
+  },
+  "signals_by_listing": {
+    "10": {
+      "demand": "80",
+      "competition": "30",
+      "margin": "65",
+      "listing_quality": "75"
+    }
+  },
+  "competitors_by_listing": {
+    "10": [
+      {"item_id": 11, "name": "Concorrente", "price": "82.90"}
+    ]
+  },
+  "policy": {
+    "minimum_score": "50",
+    "allowed_classifications": ["alto", "moderado"],
+    "target_margin_percent": "20"
+  }
+}</textarea>
+    <div class="actions">
+      <button data-action="achadinhos">Gerar Achadinhos aprovados</button>
+    </div>
+  </section>
+  <section>
     <h2>Acompanhamento</h2>
     <div class="actions">
       <button data-action="reports">Relatórios</button>
@@ -89,12 +130,13 @@ DASHBOARD_HTML = """<!doctype html>
 <script>
   const result = document.getElementById("result");
   const routes = {
-    analysis: ["POST", "/v1/analysis360"],
-    campaign: ["POST", "/v1/campaign"],
-    reports: ["GET", "/v1/reports"],
-    schedules: ["GET", "/v1/schedules"],
-    queue: ["GET", "/v1/queue"],
-    templates: ["GET", "/v1/campaign-templates"]
+    analysis: ["POST", "/v1/analysis360", "payload"],
+    campaign: ["POST", "/v1/campaign", "payload"],
+    achadinhos: ["POST", "/v1/achadinhos", "achadinhos-payload"],
+    reports: ["GET", "/v1/reports", null],
+    schedules: ["GET", "/v1/schedules", null],
+    queue: ["GET", "/v1/queue", null],
+    templates: ["GET", "/v1/campaign-templates", null]
   };
 
   async function callAPI(action) {
@@ -107,7 +149,7 @@ DASHBOARD_HTML = """<!doctype html>
     if (route[0] === "POST") {
       let payload;
       try {
-        payload = JSON.parse(document.getElementById("payload").value);
+        payload = JSON.parse(document.getElementById(route[2]).value);
       } catch (error) {
         result.textContent = "JSON inválido.";
         return;
@@ -272,7 +314,9 @@ def _handler(service: MobileAPIService, config: MobileServerConfig):
             self._send_json(response)
 
         def do_PUT(self) -> None:
-            self._send_json(APIResponse(405, {"ok": False, "error": "Método não permitido."}))
+            self._send_json(
+                APIResponse(405, {"ok": False, "error": "Método não permitido."})
+            )
 
         do_DELETE = do_PUT
         do_PATCH = do_PUT

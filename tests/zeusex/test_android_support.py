@@ -10,7 +10,11 @@ from openjarvis.zeusex.android_support import (
     AndroidPackageManifest,
     backup_android_databases,
     build_android_update_plan,
+    check_android_health,
     diagnose_android,
+    migrate_android_databases,
+    restore_android_backup,
+    verify_android_backup,
 )
 
 
@@ -64,6 +68,52 @@ def test_backup_uses_separate_sqlite_snapshots(tmp_path) -> None:
     assert not (result.destination / "não-copiar.txt").exists()
     with sqlite3.connect(result.destination / "zeusex.db") as connection:
         assert connection.execute("SELECT value FROM sample").fetchone()[0] == "memória"
+
+    verification = verify_android_backup(result.destination)
+    assert verification.valid is True
+    assert set(verification.databases) == {"zeusex.db", "marketplace-reports.db"}
+
+
+def test_verification_rejects_tampered_backup(tmp_path) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    _database(data / "zeusex.db", "original")
+    backup = backup_android_databases(data, tmp_path / "backups")
+    (backup.destination / "zeusex.db").write_bytes(b"alterado")
+
+    result = verify_android_backup(backup.destination)
+
+    assert result.valid is False
+    assert "assinatura" in result.errors[0]
+
+
+def test_restore_requires_explicit_replace_for_existing_database(tmp_path) -> None:
+    source = tmp_path / "source"
+    target = tmp_path / "target"
+    source.mkdir()
+    target.mkdir()
+    _database(source / "zeusex.db", "backup")
+    _database(target / "zeusex.db", "local")
+    backup = backup_android_databases(source, tmp_path / "backups")
+
+    with pytest.raises(ValueError, match="substituição explícita"):
+        restore_android_backup(backup.destination, target)
+    restored = restore_android_backup(backup.destination, target, replace=True)
+
+    assert [path.name for path in restored.files] == ["zeusex.db"]
+    with sqlite3.connect(target / "zeusex.db") as connection:
+        assert connection.execute("SELECT value FROM sample").fetchone()[0] == "backup"
+
+
+def test_migrations_are_idempotent_and_health_checks_integrity(tmp_path) -> None:
+    _database(tmp_path / "zeusex.db", "memória")
+
+    assert migrate_android_databases(tmp_path) == (("zeusex.db", 1),)
+    assert migrate_android_databases(tmp_path) == (("zeusex.db", 1),)
+    health = check_android_health(tmp_path)
+
+    assert health.healthy is True
+    assert health.schema_versions == (("zeusex.db", 1),)
 
 
 def test_backup_rejects_same_source_and_destination(tmp_path) -> None:

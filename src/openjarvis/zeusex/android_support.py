@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
+import hashlib
 import json
 import os
 import re
@@ -19,6 +20,8 @@ DATABASE_FILENAMES = (
     "campaign-templates.db",
     "schedules.db",
 )
+BACKUP_MANIFEST = "backup-manifest.json"
+DATABASE_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +96,45 @@ class BackupResult:
     files: tuple[Path, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class BackupVerification:
+    source: Path
+    valid: bool
+    databases: tuple[str, ...]
+    errors: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RestoreResult:
+    destination: Path
+    files: tuple[Path, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AndroidHealth:
+    healthy: bool
+    databases: tuple[str, ...]
+    schema_versions: tuple[tuple[str, int], ...]
+    errors: tuple[str, ...]
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _sqlite_integrity(path: Path) -> str | None:
+    try:
+        with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as connection:
+            result = connection.execute("PRAGMA quick_check").fetchone()
+    except sqlite3.Error:
+        return "banco SQLite inválido"
+    return None if result and result[0] == "ok" else "falha na integridade SQLite"
+
+
 def backup_android_databases(
     data_dir: Path | str,
     backup_root: Path | str,
@@ -122,7 +164,123 @@ def backup_android_databases(
         except sqlite3.Error as exc:
             raise RuntimeError(f"Falha ao salvar o banco {filename}.") from exc
         saved.append(target)
+    manifest = {
+        "schema_version": 1,
+        "databases": {
+            path.name: {"sha256": _sha256(path), "size": path.stat().st_size}
+            for path in saved
+        },
+    }
+    (destination / BACKUP_MANIFEST).write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
     return BackupResult(destination=destination, files=tuple(saved))
+
+
+def verify_android_backup(backup_dir: Path | str) -> BackupVerification:
+    source = Path(backup_dir).expanduser().resolve()
+    errors: list[str] = []
+    manifest_path = source / BACKUP_MANIFEST
+    if not source.is_dir():
+        return BackupVerification(source, False, (), ("A pasta de backup não existe.",))
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        entries = manifest["databases"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return BackupVerification(source, False, (), ("Manifesto de backup inválido.",))
+    if not isinstance(entries, dict):
+        return BackupVerification(source, False, (), ("Manifesto de backup inválido.",))
+
+    databases: list[str] = []
+    for filename, metadata in entries.items():
+        if filename not in DATABASE_FILENAMES or not isinstance(metadata, dict):
+            errors.append("O manifesto contém um banco não autorizado.")
+            continue
+        path = source / filename
+        if not path.is_file() or _sha256(path) != metadata.get("sha256"):
+            errors.append(f"Falha na assinatura do banco {filename}.")
+            continue
+        integrity_error = _sqlite_integrity(path)
+        if integrity_error:
+            errors.append(f"{filename}: {integrity_error}.")
+            continue
+        databases.append(filename)
+    return BackupVerification(source, not errors, tuple(databases), tuple(errors))
+
+
+def restore_android_backup(
+    backup_dir: Path | str,
+    data_dir: Path | str,
+    *,
+    replace: bool = False,
+) -> RestoreResult:
+    verification = verify_android_backup(backup_dir)
+    if not verification.valid:
+        raise ValueError("O backup não passou na verificação.")
+    destination = Path(data_dir).expanduser().resolve()
+    destination.mkdir(parents=True, exist_ok=True)
+    restored: list[Path] = []
+    for filename in verification.databases:
+        target = destination / filename
+        if target.exists() and not replace:
+            raise ValueError(f"O banco {filename} já existe; use substituição explícita.")
+        try:
+            with sqlite3.connect(verification.source / filename) as source_db:
+                with sqlite3.connect(target) as target_db:
+                    source_db.backup(target_db)
+        except (OSError, sqlite3.Error) as exc:
+            raise RuntimeError(f"Falha ao restaurar o banco {filename}.") from exc
+        restored.append(target)
+    return RestoreResult(destination, tuple(restored))
+
+
+def migrate_android_databases(data_dir: Path | str) -> tuple[tuple[str, int], ...]:
+    """Registra a versão do esquema sem modificar tabelas de domínio."""
+
+    root = Path(data_dir).expanduser().resolve()
+    versions: list[tuple[str, int]] = []
+    for filename in DATABASE_FILENAMES:
+        path = root / filename
+        if not path.is_file():
+            continue
+        with sqlite3.connect(path) as connection:
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS zeusex_schema_migrations "
+                "(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO zeusex_schema_migrations(version, applied_at) "
+                "VALUES (?, ?)",
+                (DATABASE_SCHEMA_VERSION, datetime.now(timezone.utc).isoformat()),
+            )
+        versions.append((filename, DATABASE_SCHEMA_VERSION))
+    return tuple(versions)
+
+
+def check_android_health(data_dir: Path | str) -> AndroidHealth:
+    root = Path(data_dir).expanduser().resolve()
+    errors: list[str] = []
+    databases: list[str] = []
+    versions: list[tuple[str, int]] = []
+    for filename in DATABASE_FILENAMES:
+        path = root / filename
+        if not path.is_file():
+            continue
+        databases.append(filename)
+        integrity_error = _sqlite_integrity(path)
+        if integrity_error:
+            errors.append(f"{filename}: {integrity_error}.")
+            continue
+        try:
+            with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as connection:
+                row = connection.execute(
+                    "SELECT max(version) FROM zeusex_schema_migrations"
+                ).fetchone()
+            versions.append((filename, int(row[0] or 0)))
+        except sqlite3.Error:
+            versions.append((filename, 0))
+    return AndroidHealth(not errors, tuple(databases), tuple(versions), tuple(errors))
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,9 +323,16 @@ __all__ = [
     "AndroidDiagnostic",
     "AndroidPackageManifest",
     "AndroidUpdatePlan",
+    "AndroidHealth",
+    "BackupVerification",
     "BackupResult",
+    "RestoreResult",
     "DATABASE_FILENAMES",
     "backup_android_databases",
     "build_android_update_plan",
+    "check_android_health",
     "diagnose_android",
+    "migrate_android_databases",
+    "restore_android_backup",
+    "verify_android_backup",
 ]

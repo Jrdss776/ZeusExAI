@@ -16,7 +16,11 @@ from openjarvis.zeusex.android_support import (
     AndroidPackageManifest,
     backup_android_databases,
     build_android_update_plan,
+    check_android_health,
     diagnose_android,
+    migrate_android_databases,
+    restore_android_backup,
+    verify_android_backup,
 )
 from openjarvis.zeusex.auth import LocalAPIAuthenticator
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
@@ -957,6 +961,54 @@ def android_backup(destination: str, confirm: bool) -> None:
             click.echo(f"- {path.name}")
     else:
         click.echo("Nenhum banco conhecido foi encontrado.")
+
+
+@android_group.command("verify-backup")
+@click.argument("backup_dir")
+def android_verify_backup(backup_dir: str) -> None:
+    result = verify_android_backup(backup_dir)
+    click.echo("Backup válido." if result.valid else "Backup inválido.")
+    for error in result.errors:
+        click.echo(f"- {error}")
+    if not result.valid:
+        raise click.ClickException("A verificação do backup falhou.")
+
+
+@android_group.command("restore")
+@click.argument("backup_dir")
+@click.option("--replace", is_flag=True, help="Substitui bancos locais existentes.")
+@click.option("--confirm", is_flag=True, help="Confirma a restauração local.")
+def android_restore(backup_dir: str, replace: bool, confirm: bool) -> None:
+    if not confirm:
+        raise click.ClickException("Use --confirm para restaurar o backup local.")
+    try:
+        result = restore_android_backup(
+            backup_dir,
+            RuntimeConfig.from_env().data_dir,
+            replace=replace,
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Bancos restaurados: {len(result.files)}")
+
+
+@android_group.command("migrate")
+@click.option("--confirm", is_flag=True, help="Confirma as migrações versionadas.")
+def android_migrate(confirm: bool) -> None:
+    if not confirm:
+        raise click.ClickException("Use --confirm para aplicar migrações locais.")
+    versions = migrate_android_databases(RuntimeConfig.from_env().data_dir)
+    click.echo(f"Bancos versionados: {len(versions)}")
+
+
+@android_group.command("health")
+def android_health() -> None:
+    report = check_android_health(RuntimeConfig.from_env().data_dir)
+    click.echo("Saúde pós-atualização: OK" if report.healthy else "Saúde pós-atualização: FALHA")
+    for filename, version in report.schema_versions:
+        click.echo(f"- {filename}: esquema {version}")
+    if not report.healthy:
+        raise click.ClickException("Um ou mais bancos falharam na verificação.")
 
 
 __all__ = ["zeusex"]

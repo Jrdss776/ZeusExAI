@@ -75,3 +75,34 @@ A PWA:
 
 Se o servidor estiver desligado, a tela pode abrir com a estrutura visual em
 cache, mas análises, campanhas, agenda e fila permanecerão indisponíveis.
+
+## Backup e atualização segura
+
+Antes de atualizar, crie e verifique um backup em uma pasta separada:
+
+```bash
+jarvis zeusex android backup --destination ~/zeusex-backups --confirm
+jarvis zeusex android verify-backup ~/zeusex-backups/zeusex-backup-ARQUIVO
+```
+
+O backup inclui somente os bancos SQLite conhecidos, um manifesto e assinaturas
+SHA-256. Arquivos alterados ou bancos fora da allowlist são rejeitados.
+
+Para restaurar, encerre primeiro o servidor local. A substituição de bancos
+existentes precisa ser declarada explicitamente:
+
+```bash
+jarvis zeusex android restore CAMINHO_DO_BACKUP --confirm
+jarvis zeusex android restore CAMINHO_DO_BACKUP --replace --confirm
+```
+
+Depois de atualizar o código, registre as migrações versionadas e execute o
+diagnóstico único de integridade:
+
+```bash
+jarvis zeusex android migrate --confirm
+jarvis zeusex android health
+```
+
+As migrações são idempotentes e não alteram as tabelas de domínio. O comando de
+saúde executa a verificação SQLite e informa a versão registrada de cada banco.

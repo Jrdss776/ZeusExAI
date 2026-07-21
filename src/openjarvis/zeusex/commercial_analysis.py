@@ -91,11 +91,17 @@ class CommercialAnalysisService:
         *,
         attributes: Mapping[str, str] | None = None,
         signals: PotentialSignals | None = None,
-        competitors: Sequence[NormalizedListing] = (),
+        competitors: Sequence[NormalizedListing | Mapping[str, Any]] = (),
     ) -> CommercialAnalysisResult:
         """Analisa um anúncio já normalizado sem repetir parsing de marketplace."""
 
-        normalized_competitors = tuple(competitors)
+        adapter = self._adapters.get(listing.marketplace)
+        if adapter is None:
+            raise ValueError("Marketplace suportado: shopee ou mercado_livre.")
+        normalized_competitors = tuple(
+            item if isinstance(item, NormalizedListing) else adapter.normalize(item)
+            for item in competitors
+        )
         product = ProductInput(
             name=listing.title,
             marketplace=listing.marketplace,

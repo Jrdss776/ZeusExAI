@@ -1,114 +1,109 @@
 openapi: 3.1.0
 info:
   title: ZeusEXai Mobile API
-  version: 0.1.0
+  version: 0.2.0
   description: >-
-    Contrato local para o futuro aplicativo Android. A implementação atual é
-    uma camada de serviço sem listener de rede. Operações de publicação,
-    compras, mensagens e shell não fazem parte desta API.
+    API local autenticada para Android/Termux. Não oferece publicação,
+    compras, mensagens ou shell.
 servers:
-  - url: http://127.0.0.1
-    description: Referência futura; nenhum servidor é iniciado atualmente.
+  - url: http://127.0.0.1:8765
+    description: Servidor opt-in limitado ao próprio aparelho.
+security:
+  - localBearer: []
 paths:
   /v1/status:
     get:
-      summary: Verifica a disponibilidade da camada local
+      security: []
+      summary: Verifica o serviço local
       responses:
         "200":
           description: Serviço disponível
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/StatusResponse"
   /v1/reports:
     get:
-      summary: Lista relatórios comerciais salvos
-      security:
-        - localBearer: []
+      summary: Lista relatórios comerciais
       responses:
         "200":
-          description: Lista de relatórios
+          description: Relatórios salvos
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /v1/reports/{report_id}:
+    get:
+      summary: Obtém um relatório em JSON e Markdown
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Relatório encontrado
+        "404":
+          description: Relatório não encontrado
   /v1/campaign-templates:
     get:
-      summary: Lista modelos de campanha locais
-      security:
-        - localBearer: []
+      summary: Lista modelos de campanha
       responses:
         "200":
-          description: Lista de modelos
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /v1/analysis360:
-    post:
-      summary: Executa uma Análise 360 com dados fornecidos
-      security:
-        - localBearer: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [product]
-              properties:
-                save:
-                  type: boolean
-                  default: false
-                product:
-                  type: object
-                  additionalProperties: true
-                attributes:
-                  type: object
-                  additionalProperties:
-                    type: string
-                signals:
-                  type: object
-                  additionalProperties: true
-                competitors:
-                  type: array
-                  items:
-                    type: object
-                    additionalProperties: true
-      responses:
-        "200":
-          description: Análise criada sem persistência
-        "201":
-          description: Análise criada e salva
-        "400":
-          description: Dados inválidos
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+          description: Modelos locais
   /v1/schedules:
+    get:
+      summary: Lista tarefas agendadas
+      responses:
+        "200":
+          description: Agenda local
     post:
-      summary: Agenda uma tarefa local permitida
-      security:
-        - localBearer: []
+      summary: Agenda uma tarefa permitida
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [job_type, scheduled_for, payload]
-              properties:
-                job_type:
-                  type: string
-                  enum: [analysis360, campaign, marketplace_queue]
-                scheduled_for:
-                  type: string
-                  format: date-time
-                payload:
-                  type: object
-                  additionalProperties: true
+              $ref: "#/components/schemas/ScheduleRequest"
       responses:
         "201":
           description: Tarefa agendada
         "400":
-          description: Tipo ou dados inválidos
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+          description: Dados inválidos
+  /v1/queue:
+    get:
+      summary: Lista a fila comercial
+      responses:
+        "200":
+          description: Trabalhos da fila
+        "503":
+          description: Fila não configurada
+  /v1/analysis360:
+    post:
+      summary: Executa uma Análise 360 sem publicação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommercialPayload"
+      responses:
+        "200":
+          description: Análise criada
+        "201":
+          description: Análise criada e salva
+        "400":
+          description: Dados inválidos
+  /v1/campaign:
+    post:
+      summary: Gera campanha Achadinhos do JR sem publicação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommercialPayload"
+      responses:
+        "200":
+          description: Campanha gerada
+        "400":
+          description: Dados inválidos
 components:
   securitySchemes:
     localBearer:
@@ -118,14 +113,43 @@ components:
     Unauthorized:
       description: Token local ausente ou inválido
   schemas:
-    StatusResponse:
+    CommercialPayload:
       type: object
-      required: [ok, service, network_listener]
+      required: [product]
       properties:
-        ok:
+        save:
           type: boolean
-        service:
+          default: false
+        product:
+          type: object
+          additionalProperties: true
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        signals:
+          type: object
+          additionalProperties: true
+        competitors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        catalog:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    ScheduleRequest:
+      type: object
+      required: [job_type, scheduled_for, payload]
+      properties:
+        job_type:
           type: string
-        network_listener:
-          type: boolean
-          const: false
+          enum: [analysis360, campaign, marketplace_queue]
+        scheduled_for:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true

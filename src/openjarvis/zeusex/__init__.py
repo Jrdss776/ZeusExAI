@@ -30,6 +30,11 @@ from openjarvis.zeusex.android_support import (
     verify_android_backup,
 )
 from openjarvis.zeusex.auth import AuthenticationResult, LocalAPIAuthenticator
+from openjarvis.zeusex.beta_readiness import (
+    BetaReadinessCheck,
+    BetaReadinessReport,
+    assess_beta_readiness,
+)
 from openjarvis.zeusex.campaign_store import (
     CampaignTemplateStore,
     SavedCampaignTemplate,
@@ -196,6 +201,8 @@ __all__ = [
     "AdvertisementDraft",
     "BackupResult",
     "BackupVerification",
+    "BetaReadinessCheck",
+    "BetaReadinessReport",
     "CampaignPackage",
     "CampaignTemplate",
     "CampaignTemplateStore",
@@ -305,6 +312,7 @@ __all__ = [
     "analyze_potential",
     "analyze_profit",
     "assess_opportunity",
+    "assess_beta_readiness",
     "backup_android_databases",
     "build_achadinhos_campaigns",
     "build_analysis_360",

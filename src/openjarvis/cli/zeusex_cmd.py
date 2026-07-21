@@ -23,6 +23,7 @@ from openjarvis.zeusex.android_support import (
     verify_android_backup,
 )
 from openjarvis.zeusex.auth import LocalAPIAuthenticator
+from openjarvis.zeusex.beta_readiness import assess_beta_readiness
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker
 from openjarvis.zeusex.campaign_store import CampaignTemplateStore
@@ -97,6 +98,22 @@ def status(mode: str) -> None:
 def diagnose() -> None:
     result = diagnose_provider()
     click.echo(f"[{'OK' if result.ok else 'FALHA'}] {result.provider}: {result.message}")
+
+
+@zeusex.command("beta-readiness")
+def beta_readiness() -> None:
+    """Verifica bloqueios locais antes da instalação Beta."""
+
+    report = assess_beta_readiness()
+    labels = {"ok": "OK", "warning": "AVISO", "blocker": "BLOQUEIO"}
+    for check in report.checks:
+        click.echo(f"[{labels[check.status]}] {check.component}: {check.message}")
+    click.echo(
+        f"Prontidão Beta: {'APROVADA' if report.ready else 'BLOQUEADA'} | "
+        f"bloqueios={report.blockers} | avisos={report.warnings}"
+    )
+    if not report.ready:
+        raise click.exceptions.Exit(1)
 
 
 @zeusex.command("setup-plan")

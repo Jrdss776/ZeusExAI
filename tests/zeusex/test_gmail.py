@@ -18,11 +18,33 @@ class FakeGmailConnector:
         return GmailConnectorStatus(True, "draft_and_send", True)
 
     def list_messages(self, *, query, max_results):
-        return [GmailMessage("1", "t1", "loja@example.com", ("jr@example.com",), "Pedido", query or "")]
+        messages = [
+            GmailMessage(
+                "1",
+                "t1",
+                "loja@example.com",
+                ("jr@example.com",),
+                "Pedido urgente",
+                "Preciso do seu retorno hoje.",
+                "2026-07-21T12:00:00Z",
+                True,
+            ),
+            GmailMessage(
+                "2",
+                "t2",
+                "news@example.com",
+                ("jr@example.com",),
+                "Novidades",
+                "Confira as novidades da semana.",
+                "2026-07-21T13:00:00Z",
+                False,
+            ),
+        ]
+        return messages[:max_results]
 
     def send_message(self, preview):
         self.sent.append(preview)
-        return GmailMessage("sent-1", "t2", "jr@example.com", preview.recipients, preview.subject)
+        return GmailMessage("sent-1", "t3", "jr@example.com", preview.recipients, preview.subject)
 
 
 def test_gmail_is_disabled_by_default() -> None:
@@ -34,7 +56,7 @@ def test_gmail_is_disabled_by_default() -> None:
 
 def test_read_only_lists_and_blocks_send() -> None:
     service = GmailService(FakeGmailConnector(), GmailConfig(True, GmailAccessMode.READ_ONLY))
-    assert service.list_messages(query="is:unread", limit=10)[0].subject == "Pedido"
+    assert service.list_messages(query="is:unread", limit=10)[0].subject == "Pedido urgente"
     preview = service.preview_draft(["JR@Example.com"], "Resposta", "Mensagem")
     with pytest.raises(PermissionError):
         service.send(preview, confirmed=True)
@@ -52,6 +74,34 @@ def test_preview_is_local_and_send_requires_confirmation() -> None:
         service.send(preview)
     sent = service.send(preview, confirmed=True)
     assert sent.id == "sent-1"
+
+
+def test_summary_is_local_and_bounded() -> None:
+    message = GmailMessage("1", "t1", "a@example.com", ("b@example.com",), "Assunto", "x" * 400)
+    summary = GmailService.summarize(message, max_length=80)
+    assert summary.startswith("Assunto — ")
+    assert summary.endswith("…")
+    assert len(summary) <= 91
+
+
+def test_triage_prioritizes_messages_that_need_reply() -> None:
+    service = GmailService(FakeGmailConnector(), GmailConfig(True, GmailAccessMode.READ_ONLY))
+    items = service.triage(service.list_messages())
+    assert items[0].category == "urgent"
+    assert items[0].requires_reply is True
+    assert items[1].category == "fyi"
+
+
+def test_api_returns_summaries_and_triage() -> None:
+    api = GmailAPI(GmailService(FakeGmailConnector(), GmailConfig(True, GmailAccessMode.READ_ONLY)))
+    messages = api.dispatch("GET", "/v1/integrations/gmail/messages", query={"q": "in:inbox"})
+    triage = api.dispatch("GET", "/v1/integrations/gmail/triage", query={"q": "in:inbox"})
+
+    assert messages.status == 200
+    assert len(messages.body["summaries"]) == 2
+    assert triage.status == 200
+    assert triage.body["requires_reply"] == 1
+    assert triage.body["items"][0]["category"] == "urgent"
 
 
 def test_api_preview_never_sends_and_send_is_blocked_without_confirmation() -> None:

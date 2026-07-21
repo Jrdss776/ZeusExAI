@@ -337,3 +337,38 @@ def test_mobile_serve_requires_token_and_loopback(tmp_path) -> None:
     assert "ZEUSEX_MOBILE_API_TOKEN" in missing.output
     assert external.exit_code != 0
     assert "loopback" in external.output
+
+
+def test_android_cli_diagnose_manifest_and_update_plan(tmp_path) -> None:
+    runner = CliRunner()
+    env = {
+        "ZEUSEX_DATA_DIR": str(tmp_path),
+        "PREFIX": "/data/data/com.termux/files/usr",
+        "TERMUX_VERSION": "1",
+    }
+    diagnose = runner.invoke(zeusex, ["android", "diagnose"], env=env)
+    manifest = runner.invoke(zeusex, ["android", "package-manifest"], env=env)
+    plan = runner.invoke(zeusex, ["android", "update-plan"], env=env)
+
+    assert diagnose.exit_code == 0
+    assert "loopback-only" in diagnose.output
+    assert manifest.exit_code == 0
+    assert '"bind_host": "127.0.0.1"' in manifest.output
+    assert plan.exit_code == 0
+    assert "backup" in plan.output.lower()
+
+
+def test_android_backup_requires_explicit_confirmation(tmp_path) -> None:
+    result = CliRunner().invoke(
+        zeusex,
+        [
+            "android",
+            "backup",
+            "--destination",
+            str(tmp_path / "backups"),
+        ],
+        env={"ZEUSEX_DATA_DIR": str(tmp_path)},
+    )
+
+    assert result.exit_code != 0
+    assert "--confirm" in result.output

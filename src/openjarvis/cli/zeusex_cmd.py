@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 
 import click
@@ -12,7 +13,8 @@ from openjarvis.zeusex import ZEUSEX_IDENTITY
 from openjarvis.zeusex.analysis_360 import analysis_360_from_mapping
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker
-from openjarvis.zeusex.campaigns import campaign_from_mapping
+from openjarvis.zeusex.campaign_store import CampaignTemplateStore
+from openjarvis.zeusex.campaigns import CampaignTemplate, campaign_from_mapping
 from openjarvis.zeusex.diagnostics import diagnose_provider
 from openjarvis.zeusex.engines import EngineSettings, build_engine
 from openjarvis.zeusex.marketplace_http import (
@@ -26,9 +28,11 @@ from openjarvis.zeusex.marketplace import (
     analyze_profit,
     create_advertisement_draft,
 )
+from openjarvis.zeusex.mobile_api import MobileAPIService
 from openjarvis.zeusex.multichannel import generate_multichannel_content
 from openjarvis.zeusex.report_store import AnalysisReportStore
 from openjarvis.zeusex.runtime import RuntimeConfig, ZeusRuntime
+from openjarvis.zeusex.scheduler import ALLOWED_JOB_TYPES, SafeScheduler
 from openjarvis.zeusex.setup_assistant import build_setup_plan
 from openjarvis.zeusex.skills import default_registry
 from openjarvis.zeusex.voice import VoiceConfig, voice_status
@@ -403,6 +407,24 @@ def _report_store() -> AnalysisReportStore:
     return AnalysisReportStore(RuntimeConfig.from_env().data_dir / "marketplace-reports.db")
 
 
+def _campaign_template_store() -> CampaignTemplateStore:
+    return CampaignTemplateStore(
+        RuntimeConfig.from_env().data_dir / "campaign-templates.db"
+    )
+
+
+def _safe_scheduler() -> SafeScheduler:
+    return SafeScheduler(RuntimeConfig.from_env().data_dir / "schedules.db")
+
+
+def _mobile_api_service() -> MobileAPIService:
+    return MobileAPIService(
+        _report_store(),
+        _campaign_template_store(),
+        _safe_scheduler(),
+    )
+
+
 @marketplace_group.command("fetch-ml")
 @click.argument("listing_id")
 def marketplace_fetch_ml(listing_id: str) -> None:
@@ -678,6 +700,119 @@ def marketplace_campaign(
         package.to_json()
         if output_format == "json"
         else package.to_markdown()
+    )
+
+
+@marketplace_group.group(
+    "templates",
+    help="Gerencia modelos locais reutilizáveis de campanha.",
+)
+def marketplace_templates_group() -> None:
+    """Biblioteca editorial sem credenciais."""
+
+
+@marketplace_templates_group.command("save")
+@click.option("--name", required=True)
+@click.option("--brand", required=True)
+@click.option("--call-to-action", required=True)
+@click.option("--include-price/--omit-price", default=True, show_default=True)
+def marketplace_templates_save(
+    name: str,
+    brand: str,
+    call_to_action: str,
+    include_price: bool,
+) -> None:
+    try:
+        saved = _campaign_template_store().save(
+            CampaignTemplate(
+                name=name,
+                brand=brand,
+                call_to_action=call_to_action,
+                include_price=include_price,
+            )
+        )
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Modelo {saved.template.name} salvo com ID {saved.id}.")
+
+
+@marketplace_templates_group.command("list")
+def marketplace_templates_list() -> None:
+    templates = _campaign_template_store().list()
+    if not templates:
+        click.echo("Nenhum modelo salvo.")
+        return
+    for item in templates:
+        click.echo(
+            f"{item.id}. {item.template.name} — {item.template.brand} — "
+            f"preço: {'sim' if item.template.include_price else 'não'}"
+        )
+
+
+@zeusex.group("schedule", help="Agenda somente tarefas locais permitidas.")
+def schedule_group() -> None:
+    """Agendador sem shell e sem publicação automática."""
+
+
+@schedule_group.command("add")
+@click.option(
+    "--type",
+    "job_type",
+    type=click.Choice(sorted(ALLOWED_JOB_TYPES)),
+    required=True,
+)
+@click.option("--at", "scheduled_at", required=True, help="Data ISO 8601 com fuso.")
+@click.option("--payload", required=True, help="Objeto JSON da tarefa.")
+def schedule_add(job_type: str, scheduled_at: str, payload: str) -> None:
+    try:
+        decoded = json.loads(payload)
+        if not isinstance(decoded, dict):
+            raise ValueError("O payload precisa ser um objeto JSON.")
+        when = datetime.fromisoformat(scheduled_at)
+        task = _safe_scheduler().schedule(job_type, decoded, when)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Agendamento {task.id}: {task.job_type} — {task.status}.")
+
+
+@schedule_group.command("list")
+@click.option(
+    "--status",
+    type=click.Choice(["pending", "running", "completed", "failed"]),
+    default=None,
+)
+def schedule_list(status: str | None) -> None:
+    tasks = _safe_scheduler().list(status=status)
+    if not tasks:
+        click.echo("Nenhum agendamento.")
+        return
+    for task in tasks:
+        click.echo(
+            f"{task.id}. {task.job_type} — {task.scheduled_for} — {task.status}"
+        )
+
+
+@zeusex.command("mobile-api")
+@click.argument("method", type=click.Choice(["GET", "POST"], case_sensitive=False))
+@click.argument("path")
+@click.option("--body", default="{}", show_default=True)
+def mobile_api_command(method: str, path: str, body: str) -> None:
+    """Testa a camada Android local sem iniciar servidor de rede."""
+
+    try:
+        decoded = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise click.ClickException("O corpo precisa ser um objeto JSON válido.") from exc
+    if not isinstance(decoded, dict):
+        raise click.ClickException("O corpo precisa ser um objeto JSON.")
+    response = _mobile_api_service().dispatch(method, path, decoded)
+    click.echo(
+        json.dumps(
+            {"status": response.status, **response.body},
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
     )
 
 

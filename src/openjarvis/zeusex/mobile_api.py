@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any, Mapping
 
 from openjarvis.zeusex.analysis_360 import analysis_360_from_mapping
+from openjarvis.zeusex.auth import LocalAPIAuthenticator
 from openjarvis.zeusex.campaign_store import CampaignTemplateStore
 from openjarvis.zeusex.report_store import AnalysisReportStore
 from openjarvis.zeusex.scheduler import SafeScheduler
@@ -26,10 +27,13 @@ class MobileAPIService:
         reports: AnalysisReportStore,
         templates: CampaignTemplateStore,
         scheduler: SafeScheduler,
+        *,
+        authenticator: LocalAPIAuthenticator | None = None,
     ) -> None:
         self.reports = reports
         self.templates = templates
         self.scheduler = scheduler
+        self.authenticator = authenticator
 
     @staticmethod
     def _error(status: int, message: str) -> APIResponse:
@@ -40,6 +44,8 @@ class MobileAPIService:
         method: str,
         path: str,
         body: Mapping[str, Any] | None = None,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> APIResponse:
         verb = method.strip().upper()
         route = "/" + path.strip("/")
@@ -54,6 +60,11 @@ class MobileAPIService:
                         "network_listener": False,
                     },
                 )
+
+            if self.authenticator is not None:
+                decision = self.authenticator.authenticate(headers)
+                if not decision.allowed:
+                    return self._error(401, decision.reason)
 
             if verb == "GET" and route == "/v1/reports":
                 reports = self.reports.list()

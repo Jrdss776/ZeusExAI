@@ -78,9 +78,9 @@ class IntelligentDashboardService:
         goals = self.goals.list_goals(limit=bounded)
         memories = self.memories.list(limit=bounded)
         reports = self.reports.top_products(limit=bounded, profitable_only=False)
-        campaigns = self.campaigns.list(limit=bounded)
+        campaigns = self.campaigns.list()[:bounded]
 
-        priority_tasks = []
+        priority_tasks: list[dict[str, Any]] = []
         open_tasks = 0
         blocked_tasks = 0
         for project in projects:
@@ -92,7 +92,7 @@ class IntelligentDashboardService:
                 if task.priority in {"high", "critical"} and task.status != "done":
                     priority_tasks.append({"project_name": project.name, **task.to_dict()})
         priority_tasks.sort(
-            key=lambda item: (item["priority"] != "critical", item["id"]),
+            key=lambda item: (item["priority"] != "critical", -int(item["id"])),
         )
 
         active_goals = [goal for goal in goals if goal.status in {"planned", "active", "paused"}]

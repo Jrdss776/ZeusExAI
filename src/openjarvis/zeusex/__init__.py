@@ -7,6 +7,10 @@ from openjarvis.zeusex.analysis_360 import (
 )
 from openjarvis.zeusex.analysis_queue import AnalysisJob, AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker, WorkerOutcome
+from openjarvis.zeusex.campaign_store import (
+    CampaignTemplateStore,
+    SavedCampaignTemplate,
+)
 from openjarvis.zeusex.campaigns import (
     ACHADINHOS_JR_TEMPLATE,
     CampaignPackage,
@@ -46,6 +50,7 @@ from openjarvis.zeusex.marketplace_listings import (
     NormalizedListing,
     ShopeeAdapter,
 )
+from openjarvis.zeusex.mobile_api import APIResponse, MobileAPIService
 from openjarvis.zeusex.multichannel import (
     MarketplaceCopy,
     MultichannelPackage,
@@ -56,6 +61,11 @@ from openjarvis.zeusex.multichannel import (
 )
 from openjarvis.zeusex.report_store import AnalysisReportStore, SavedAnalysis
 from openjarvis.zeusex.runtime import AIEngine, CallableEngine, DisabledEngine, RuntimeConfig, ZeusRuntime
+from openjarvis.zeusex.scheduler import (
+    ALLOWED_JOB_TYPES,
+    SafeScheduler,
+    ScheduledTask,
+)
 from openjarvis.zeusex.skills import ENTRY_POINT_GROUP, Skill, SkillRegistry, default_registry, discover_skills
 from openjarvis.zeusex.voice import VoiceConfig, extract_wake_command, voice_status
 from openjarvis.zeusex.voice_runtime import (
@@ -69,6 +79,8 @@ from openjarvis.zeusex.voice_runtime import (
 
 __all__ = [
     "ACHADINHOS_JR_TEMPLATE",
+    "ALLOWED_JOB_TYPES",
+    "APIResponse",
     "AIEngine",
     "Analysis360Report",
     "AnalysisJob",
@@ -78,6 +90,7 @@ __all__ = [
     "AdvertisementDraft",
     "CampaignPackage",
     "CampaignTemplate",
+    "CampaignTemplateStore",
     "CatalogItem",
     "CallableEngine",
     "CombinationSuggestion",
@@ -92,6 +105,7 @@ __all__ = [
     "MarketplaceHTTPError",
     "MercadoLivreAdapter",
     "MercadoLivreReadClient",
+    "MobileAPIService",
     "MultichannelPackage",
     "NormalizedListing",
     "NullSpeechCapture",
@@ -104,9 +118,12 @@ __all__ = [
     "OpenAICompatibleEngine",
     "ReadOnlyHTTPClient",
     "RuntimeConfig",
+    "SafeScheduler",
+    "SavedCampaignTemplate",
     "SavedAnalysis",
     "Skill",
     "SkillRegistry",
+    "ScheduledTask",
     "ShopeeAdapter",
     "ShopeeReadClient",
     "SocialCopy",

@@ -9,6 +9,11 @@ from typing import Any
 import json
 
 from openjarvis.zeusex.mobile_api import APIResponse, MobileAPIService
+from openjarvis.zeusex.pwa_assets import (
+    PWA_ICON_SVG,
+    PWA_MANIFEST_JSON,
+    PWA_SERVICE_WORKER,
+)
 
 DASHBOARD_HTML = """<!doctype html>
 <html lang="pt-BR">
@@ -16,6 +21,9 @@ DASHBOARD_HTML = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d2038">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <title>ZeusEXai Mobile</title>
   <style>
     :root { font-family: system-ui, sans-serif; color: #eef5ff; background: #07111f; }
@@ -119,6 +127,9 @@ DASHBOARD_HTML = """<!doctype html>
   document.querySelectorAll("[data-action]").forEach((button) => {
     button.addEventListener("click", () => callAPI(button.dataset.action));
   });
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
 </script>
 </body>
 </html>
@@ -189,7 +200,42 @@ def _handler(service: MobileAPIService, config: MobileServerConfig):
                 raise ValueError("O corpo precisa ser um objeto JSON.")
             return payload
 
+        def _send_static(
+            self,
+            content: str,
+            content_type: str,
+            *,
+            cache_control: str = "no-store",
+        ) -> None:
+            payload = content.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Cache-Control", cache_control)
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(payload)
+
         def do_GET(self) -> None:
+            if self.path == "/manifest.webmanifest":
+                self._send_static(
+                    PWA_MANIFEST_JSON,
+                    "application/manifest+json; charset=utf-8",
+                )
+                return
+            if self.path == "/icon.svg":
+                self._send_static(
+                    PWA_ICON_SVG,
+                    "image/svg+xml; charset=utf-8",
+                    cache_control="public, max-age=86400",
+                )
+                return
+            if self.path == "/sw.js":
+                self._send_static(
+                    PWA_SERVICE_WORKER,
+                    "text/javascript; charset=utf-8",
+                )
+                return
             if self.path == "/":
                 payload = DASHBOARD_HTML.encode("utf-8")
                 self.send_response(200)

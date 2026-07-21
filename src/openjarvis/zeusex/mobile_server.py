@@ -19,43 +19,105 @@ DASHBOARD_HTML = """<!doctype html>
   <title>ZeusEXai Mobile</title>
   <style>
     :root { font-family: system-ui, sans-serif; color: #eef5ff; background: #07111f; }
-    body { margin: 0; padding: 24px; max-width: 780px; margin-inline: auto; }
-    header, section { background: #0d2038; border: 1px solid #25486d; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    body { margin: 0; padding: 20px; max-width: 900px; margin-inline: auto; }
+    header, section { background: #0d2038; border: 1px solid #25486d; border-radius: 16px; padding: 18px; margin-bottom: 14px; }
     h1 { color: #f2c14e; margin-top: 0; }
-    label { display: block; margin-bottom: 6px; }
-    input, button { box-sizing: border-box; border-radius: 10px; padding: 12px; font: inherit; }
-    input { width: 100%; color: #eef5ff; background: #07111f; border: 1px solid #3c648d; }
-    button { margin-top: 10px; color: #07111f; background: #f2c14e; border: 0; font-weight: 700; }
-    pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #b9d8f5; }
+    h2 { margin-top: 0; }
+    label { display: block; margin: 8px 0 6px; }
+    input, textarea, button { box-sizing: border-box; border-radius: 10px; padding: 11px; font: inherit; }
+    input, textarea { width: 100%; color: #eef5ff; background: #07111f; border: 1px solid #3c648d; }
+    textarea { min-height: 220px; resize: vertical; }
+    button { color: #07111f; background: #f2c14e; border: 0; font-weight: 700; cursor: pointer; }
+    .actions { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 8px; margin-top: 12px; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #b9d8f5; max-height: 55vh; overflow: auto; }
     .safe { color: #8ce99a; }
+    .muted { color: #9fb5cc; }
   </style>
 </head>
 <body>
   <header>
     <h1>ZeusEXai Mobile</h1>
-    <p class="safe">Servidor local: este painel funciona somente no próprio aparelho.</p>
+    <p class="safe">Painel local e autenticado — nenhuma ação publica anúncios.</p>
   </header>
   <section>
+    <h2>Acesso</h2>
     <label for="token">Token local (não é salvo no navegador)</label>
     <input id="token" type="password" autocomplete="off">
-    <button id="load">Carregar relatórios</button>
+  </section>
+  <section>
+    <h2>Dados comerciais</h2>
+    <label for="payload">Produto, atributos, sinais, concorrentes e catálogo em JSON</label>
+    <textarea id="payload">{
+  "save": true,
+  "product": {
+    "name": "Produto de exemplo",
+    "marketplace": "shopee",
+    "sale_price": "49.90",
+    "product_cost": "25"
+  },
+  "attributes": {
+    "Material": "informe o material"
+  }
+}</textarea>
+    <div class="actions">
+      <button data-action="analysis">Criar Análise 360</button>
+      <button data-action="campaign">Gerar campanha</button>
+    </div>
+  </section>
+  <section>
+    <h2>Acompanhamento</h2>
+    <div class="actions">
+      <button data-action="reports">Relatórios</button>
+      <button data-action="schedules">Agenda</button>
+      <button data-action="queue">Fila comercial</button>
+      <button data-action="templates">Modelos</button>
+    </div>
   </section>
   <section>
     <h2>Resposta</h2>
+    <p class="muted">Os dados abaixo permanecem neste aparelho.</p>
     <pre id="result">Pronto.</pre>
   </section>
 <script>
   const result = document.getElementById("result");
-  document.getElementById("load").addEventListener("click", async () => {
+  const routes = {
+    analysis: ["POST", "/v1/analysis360"],
+    campaign: ["POST", "/v1/campaign"],
+    reports: ["GET", "/v1/reports"],
+    schedules: ["GET", "/v1/schedules"],
+    queue: ["GET", "/v1/queue"],
+    templates: ["GET", "/v1/campaign-templates"]
+  };
+
+  async function callAPI(action) {
+    const route = routes[action];
     const token = document.getElementById("token").value;
+    const options = {
+      method: route[0],
+      headers: {Authorization: "Bearer " + token}
+    };
+    if (route[0] === "POST") {
+      let payload;
+      try {
+        payload = JSON.parse(document.getElementById("payload").value);
+      } catch (error) {
+        result.textContent = "JSON inválido.";
+        return;
+      }
+      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(payload);
+    }
+    result.textContent = "Processando localmente...";
     try {
-      const response = await fetch("/v1/reports", {
-        headers: {Authorization: "Bearer " + token}
-      });
+      const response = await fetch(route[1], options);
       result.textContent = JSON.stringify(await response.json(), null, 2);
     } catch (error) {
       result.textContent = "Falha local: " + error.name;
     }
+  }
+
+  document.querySelectorAll("[data-action]").forEach((button) => {
+    button.addEventListener("click", () => callAPI(button.dataset.action));
   });
 </script>
 </body>

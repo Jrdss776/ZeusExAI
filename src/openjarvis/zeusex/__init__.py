@@ -7,6 +7,16 @@ from openjarvis.zeusex.analysis_360 import (
 )
 from openjarvis.zeusex.analysis_queue import AnalysisJob, AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker, WorkerOutcome
+from openjarvis.zeusex.campaigns import (
+    ACHADINHOS_JR_TEMPLATE,
+    CampaignPackage,
+    CampaignTemplate,
+    CatalogItem,
+    CombinationSuggestion,
+    campaign_from_mapping,
+    generate_campaign,
+    suggest_combinations,
+)
 from openjarvis.zeusex.competitors import CompetitorComparison, compare_listings
 from openjarvis.zeusex.desktop_automation import allowed_applications, open_allowed_application
 from openjarvis.zeusex.diagnostics import DiagnosticResult, diagnose_provider
@@ -58,6 +68,7 @@ from openjarvis.zeusex.voice_runtime import (
 )
 
 __all__ = [
+    "ACHADINHOS_JR_TEMPLATE",
     "AIEngine",
     "Analysis360Report",
     "AnalysisJob",
@@ -65,7 +76,11 @@ __all__ = [
     "AnalysisReportStore",
     "AnalysisWorker",
     "AdvertisementDraft",
+    "CampaignPackage",
+    "CampaignTemplate",
+    "CatalogItem",
     "CallableEngine",
+    "CombinationSuggestion",
     "CompetitorComparison",
     "DiagnosticResult",
     "DisabledEngine",
@@ -113,13 +128,16 @@ __all__ = [
     "analyze_profit",
     "build_analysis_360",
     "build_engine",
+    "campaign_from_mapping",
     "compare_listings",
     "create_advertisement_draft",
     "default_registry",
     "diagnose_provider",
     "discover_skills",
     "extract_wake_command",
+    "generate_campaign",
     "generate_multichannel_content",
     "open_allowed_application",
+    "suggest_combinations",
     "voice_status",
 ]

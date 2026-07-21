@@ -86,7 +86,9 @@ class AchadinhosCampaignBatch:
                 return str(value)
             if isinstance(value, Mapping):
                 return {str(key): safe(item) for key, item in value.items()}
-            if isinstance(value, (list, tuple, frozenset, set)):
+            if isinstance(value, (frozenset, set)):
+                return [safe(item) for item in sorted(value, key=str)]
+            if isinstance(value, (list, tuple)):
                 return [safe(item) for item in value]
             return value
 

@@ -33,6 +33,20 @@ class CalendarEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class CalendarEventPreview:
+    event: CalendarEvent
+    requires_confirmation: bool = True
+    external_action_performed: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event": self.event.to_dict(),
+            "requires_confirmation": self.requires_confirmation,
+            "external_action_performed": self.external_action_performed,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class CalendarConnectorStatus:
     enabled: bool
     access_mode: str
@@ -165,11 +179,29 @@ class GoogleCalendarService:
             raise ValueError("O título do evento não pode ficar vazio.")
         return self.connector.create_event(event)
 
+    def preview_event(self, event: CalendarEvent) -> CalendarEventPreview:
+        """Valida uma proposta local sem exigir rede nem criar o evento."""
+
+        self._validate_interval(event.start, event.end)
+        if not event.title.strip():
+            raise ValueError("O título do evento não pode ficar vazio.")
+        normalized = CalendarEvent(
+            id="preview",
+            title=event.title.strip(),
+            start=event.start,
+            end=event.end,
+            location=event.location.strip(),
+            description=event.description.strip(),
+            calendar_id=(event.calendar_id.strip() or self.config.calendar_id),
+        )
+        return CalendarEventPreview(normalized)
+
 
 __all__ = [
     "CalendarAccessMode",
     "CalendarConnectorStatus",
     "CalendarEvent",
+    "CalendarEventPreview",
     "DisabledGoogleCalendarConnector",
     "GoogleCalendarConfig",
     "GoogleCalendarConnector",

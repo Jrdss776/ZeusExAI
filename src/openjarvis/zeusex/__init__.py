@@ -66,6 +66,20 @@ from openjarvis.zeusex.competitors import CompetitorComparison, compare_listings
 from openjarvis.zeusex.desktop_automation import allowed_applications, open_allowed_application
 from openjarvis.zeusex.diagnostics import DiagnosticResult, diagnose_provider
 from openjarvis.zeusex.engines import EngineSettings, OllamaEngine, OpenAICompatibleEngine, build_engine
+from openjarvis.zeusex.google_calendar import (
+    CalendarAccessMode,
+    CalendarConnectorStatus,
+    CalendarEvent,
+    CalendarEventPreview,
+    DisabledGoogleCalendarConnector,
+    GoogleCalendarConfig,
+    GoogleCalendarConnector,
+    GoogleCalendarService,
+)
+from openjarvis.zeusex.google_calendar_api import (
+    CalendarAPIResponse,
+    GoogleCalendarAPI,
+)
 from openjarvis.zeusex.identity import ZEUSEX_IDENTITY, ZeusExIdentity
 from openjarvis.zeusex.marketplace import (
     AdvertisementDraft,
@@ -153,6 +167,11 @@ __all__ = [
     "CampaignPackage",
     "CampaignTemplate",
     "CampaignTemplateStore",
+    "CalendarAPIResponse",
+    "CalendarAccessMode",
+    "CalendarConnectorStatus",
+    "CalendarEvent",
+    "CalendarEventPreview",
     "CommercialAnalysisRequest",
     "CommercialAnalysisResult",
     "CommercialAnalysisService",
@@ -166,9 +185,14 @@ __all__ = [
     "CompetitorComparison",
     "DiagnosticResult",
     "DisabledEngine",
+    "DisabledGoogleCalendarConnector",
     "ENTRY_POINT_GROUP",
     "EngineSettings",
     "HTTPClientConfig",
+    "GoogleCalendarAPI",
+    "GoogleCalendarConfig",
+    "GoogleCalendarConnector",
+    "GoogleCalendarService",
     "MarketplaceAdapter",
     "MarketplaceCopy",
     "LocalAPIAuthenticator",

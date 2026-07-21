@@ -45,9 +45,25 @@ Camada JSON local com as rotas:
 GET  /v1/integrations/google-calendar/status
 GET  /v1/integrations/google-calendar/events
 POST /v1/integrations/google-calendar/events
+POST /v1/integrations/google-calendar/events/preview
 ```
 
 A criação via `POST` só funciona em modo `read_write` e com confirmação explícita fornecida pela aplicação hospedeira.
+
+A rota `/preview` valida título, intervalo, localização e calendário inteiramente
+no processo local. Ela não exige autenticação, não chama o conector e informa
+explicitamente que nenhuma ação externa foi executada.
+
+## Dashboard
+
+O dashboard inteligente agora inclui:
+
+- estado sanitizado da integração;
+- próximos eventos dos sete dias seguintes quando a leitura está habilitada;
+- quantidade de compromissos futuros no resumo;
+- alerta controlado quando o conector configurado está indisponível.
+
+Com a integração desativada, nenhuma consulta externa é iniciada.
 
 ## Segurança
 
@@ -63,6 +79,5 @@ O módulo nunca:
 
 1. implementar adaptador OAuth opcional em pacote separado;
 2. adicionar armazenamento seguro de credenciais fornecido pelo sistema operacional;
-3. integrar consultas ao dashboard;
-4. adicionar criação assistida com pré-visualização;
-5. avançar para Gmail e Google Drive mantendo o mesmo contrato de permissão.
+3. implementar uma interface visual para revisar a pré-visualização;
+4. avançar para Gmail e Google Drive mantendo o mesmo contrato de permissão.

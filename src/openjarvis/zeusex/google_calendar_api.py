@@ -74,6 +74,19 @@ class GoogleCalendarAPI:
                 )
                 created = self.service.create_event(event, confirmed=confirmed)
                 return CalendarAPIResponse(201, {"ok": True, "event": created.to_dict()})
+
+            if verb == "POST" and route == "/v1/integrations/google-calendar/events/preview":
+                event = CalendarEvent(
+                    id="preview",
+                    title=str(payload.get("title") or ""),
+                    start=str(payload.get("start") or ""),
+                    end=str(payload.get("end") or ""),
+                    location=str(payload.get("location") or ""),
+                    description=str(payload.get("description") or ""),
+                    calendar_id=str(payload.get("calendar_id") or "primary"),
+                )
+                preview = self.service.preview_event(event)
+                return CalendarAPIResponse(200, {"ok": True, "preview": preview.to_dict()})
         except PermissionError as exc:
             return self._error(403, str(exc))
         except (TypeError, ValueError) as exc:

@@ -138,3 +138,24 @@ def test_api_blocks_creation_without_confirmation() -> None:
         confirmed=True,
     )
     assert created.status == 201
+
+
+def test_preview_validates_locally_without_creating_event() -> None:
+    connector = FakeConnector()
+    api = GoogleCalendarAPI(GoogleCalendarService(connector))
+
+    response = api.dispatch(
+        "POST",
+        "/v1/integrations/google-calendar/events/preview",
+        {
+            "title": "  Planejamento Zeus  ",
+            "start": "2026-07-21T09:00:00-03:00",
+            "end": "2026-07-21T10:00:00-03:00",
+        },
+    )
+
+    assert response.status == 200
+    assert response.body["preview"]["event"]["title"] == "Planejamento Zeus"
+    assert response.body["preview"]["requires_confirmation"] is True
+    assert response.body["preview"]["external_action_performed"] is False
+    assert connector.created == []

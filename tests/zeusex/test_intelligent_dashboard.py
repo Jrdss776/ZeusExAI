@@ -1,6 +1,11 @@
 from openjarvis.zeusex.campaign_store import CampaignTemplateStore
 from openjarvis.zeusex.dashboard_api import DashboardAPIService
 from openjarvis.zeusex.goals import GoalStore
+from openjarvis.zeusex.google_calendar import (
+    CalendarAccessMode,
+    GoogleCalendarConfig,
+    GoogleCalendarService,
+)
 from openjarvis.zeusex.intelligent_dashboard import IntelligentDashboardService
 from openjarvis.zeusex.intelligent_memory import IntelligentMemoryStore
 from openjarvis.zeusex.projects import ProjectStore
@@ -31,6 +36,31 @@ def test_empty_dashboard_has_stable_summary(tmp_path):
     assert snapshot.summary["goals_total"] == 0
     assert snapshot.summary["alerts_total"] == 0
     assert snapshot.priority_tasks == ()
+    assert snapshot.calendar_status["enabled"] is False
+    assert snapshot.upcoming_events == ()
+
+
+def test_dashboard_includes_upcoming_calendar_events(tmp_path):
+    from test_google_calendar import FakeConnector
+
+    dashboard, projects, goals, memories = build_dashboard(tmp_path)
+    dashboard = IntelligentDashboardService(
+        projects,
+        goals,
+        memories,
+        dashboard.reports,
+        dashboard.campaigns,
+        GoogleCalendarService(
+            FakeConnector(),
+            GoogleCalendarConfig(enabled=True, access_mode=CalendarAccessMode.READ_ONLY),
+        ),
+    )
+
+    snapshot = dashboard.build()
+
+    assert snapshot.calendar_status["enabled"] is True
+    assert snapshot.summary["calendar_upcoming_events"] == 1
+    assert snapshot.upcoming_events[0]["title"] == "Reunião ZeusExAI"
 
 
 def test_dashboard_aggregates_projects_goals_tasks_and_memories(tmp_path):

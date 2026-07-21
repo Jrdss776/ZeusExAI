@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from openjarvis.zeusex.campaign_store import CampaignTemplateStore
 from openjarvis.zeusex.goals import GoalStore
+from openjarvis.zeusex.google_calendar import GoogleCalendarService
 from openjarvis.zeusex.intelligent_memory import IntelligentMemoryStore
 from openjarvis.zeusex.projects import ProjectStore
 from openjarvis.zeusex.report_store import AnalysisReportStore
@@ -35,6 +36,8 @@ class DashboardSnapshot:
     recent_memories: tuple[dict[str, Any], ...]
     top_products: tuple[dict[str, Any], ...]
     campaign_templates: tuple[dict[str, Any], ...]
+    calendar_status: dict[str, Any]
+    upcoming_events: tuple[dict[str, Any], ...]
     alerts: tuple[DashboardAlert, ...]
 
     def to_dict(self) -> dict[str, Any]:
@@ -47,6 +50,8 @@ class DashboardSnapshot:
             "recent_memories": list(self.recent_memories),
             "top_products": list(self.top_products),
             "campaign_templates": list(self.campaign_templates),
+            "calendar_status": self.calendar_status,
+            "upcoming_events": list(self.upcoming_events),
             "alerts": [item.to_dict() for item in self.alerts],
         }
 
@@ -61,12 +66,14 @@ class IntelligentDashboardService:
         memories: IntelligentMemoryStore,
         reports: AnalysisReportStore,
         campaigns: CampaignTemplateStore,
+        calendar: GoogleCalendarService | None = None,
     ) -> None:
         self.projects = projects
         self.goals = goals
         self.memories = memories
         self.reports = reports
         self.campaigns = campaigns
+        self.calendar = calendar or GoogleCalendarService()
 
     @staticmethod
     def _now() -> str:
@@ -79,6 +86,8 @@ class IntelligentDashboardService:
         memories = self.memories.list(limit=bounded)
         reports = self.reports.top_products(limit=bounded, profitable_only=False)
         campaigns = self.campaigns.list()[:bounded]
+        calendar_status = self.calendar.status().to_dict()
+        upcoming_events: list[dict[str, Any]] = []
 
         priority_tasks: list[dict[str, Any]] = []
         open_tasks = 0
@@ -103,6 +112,25 @@ class IntelligentDashboardService:
         )
 
         alerts: list[DashboardAlert] = []
+        if calendar_status["enabled"]:
+            now = datetime.now(timezone.utc)
+            try:
+                upcoming_events = [
+                    event.to_dict()
+                    for event in self.calendar.list_events(
+                        time_min=now.isoformat(),
+                        time_max=(now + timedelta(days=7)).isoformat(),
+                        limit=bounded,
+                    )
+                ]
+            except (PermissionError, RuntimeError, ValueError) as exc:
+                alerts.append(
+                    DashboardAlert(
+                        level="warning",
+                        code="calendar_unavailable",
+                        message=f"Google Calendar indisponível: {exc}",
+                    )
+                )
         for task in priority_tasks:
             level = "critical" if task["priority"] == "critical" else "warning"
             alerts.append(
@@ -137,6 +165,7 @@ class IntelligentDashboardService:
             "commercial_reports_visible": len(reports),
             "campaign_templates_visible": len(campaigns),
             "alerts_total": len(alerts),
+            "calendar_upcoming_events": len(upcoming_events),
         }
 
         return DashboardSnapshot(
@@ -162,6 +191,8 @@ class IntelligentDashboardService:
             campaign_templates=tuple(
                 {"id": item.id, **asdict(item.template)} for item in campaigns
             ),
+            calendar_status=calendar_status,
+            upcoming_events=tuple(upcoming_events),
             alerts=tuple(alerts[:bounded]),
         )
 

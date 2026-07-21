@@ -90,6 +90,11 @@ from openjarvis.zeusex.google_drive import (
     GoogleDriveService,
 )
 from openjarvis.zeusex.google_drive_api import DriveAPIResponse, GoogleDriveAPI
+from openjarvis.zeusex.google_integrations import (
+    GoogleIntegrationStatus,
+    GoogleIntegrationsOverview,
+    GoogleIntegrationsService,
+)
 from openjarvis.zeusex.gmail import (
     DisabledGmailConnector,
     GmailAccessMode,
@@ -224,6 +229,9 @@ __all__ = [
     "GoogleDriveConfig",
     "GoogleDriveConnector",
     "GoogleDriveService",
+    "GoogleIntegrationStatus",
+    "GoogleIntegrationsOverview",
+    "GoogleIntegrationsService",
     "GmailAPI",
     "GmailAPIResponse",
     "GmailAccessMode",

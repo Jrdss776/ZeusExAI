@@ -123,6 +123,13 @@ DASHBOARD_HTML = """<!doctype html>
     </div>
   </section>
   <section>
+    <h2>Central Google</h2>
+    <p class="muted">Diagnóstico sanitizado de Calendar, Gmail e Drive.</p>
+    <div class="actions">
+      <button data-action="googleStatus">Verificar integrações</button>
+    </div>
+  </section>
+  <section>
     <h2>Google Calendar</h2>
     <p class="muted">Integração opcional. A prévia é local e nunca cria o evento.</p>
     <label for="calendar-payload">Evento para revisão em JSON</label>
@@ -178,6 +185,7 @@ DASHBOARD_HTML = """<!doctype html>
     schedules: ["GET", "/v1/schedules", null],
     queue: ["GET", "/v1/queue", null],
     templates: ["GET", "/v1/campaign-templates", null],
+    googleStatus: ["GET", "/v1/integrations/google/status", null],
     calendarStatus: ["GET", "/v1/integrations/google-calendar/status", null],
     calendarEvents: ["GET", "/v1/integrations/google-calendar/events", null],
     calendarPreview: ["POST", "/v1/integrations/google-calendar/events/preview", "calendar-payload"],

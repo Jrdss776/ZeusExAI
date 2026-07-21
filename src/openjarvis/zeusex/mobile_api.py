@@ -25,6 +25,7 @@ from openjarvis.zeusex.google_calendar import GoogleCalendarService
 from openjarvis.zeusex.google_calendar_api import GoogleCalendarAPI
 from openjarvis.zeusex.google_drive import GoogleDriveService
 from openjarvis.zeusex.google_drive_api import GoogleDriveAPI
+from openjarvis.zeusex.google_integrations import GoogleIntegrationsService
 from openjarvis.zeusex.gmail import GmailService
 from openjarvis.zeusex.gmail_api import GmailAPI
 from openjarvis.zeusex.marketplace import PotentialSignals
@@ -173,6 +174,7 @@ class MobileAPIService:
         calendar_api: GoogleCalendarAPI | None = None,
         gmail_api: GmailAPI | None = None,
         drive_api: GoogleDriveAPI | None = None,
+        google_integrations: GoogleIntegrationsService | None = None,
     ) -> None:
         self.reports = reports
         self.templates = templates
@@ -182,6 +184,7 @@ class MobileAPIService:
         self.calendar_api = calendar_api or GoogleCalendarAPI(GoogleCalendarService())
         self.gmail_api = gmail_api or GmailAPI(GmailService())
         self.drive_api = drive_api or GoogleDriveAPI(GoogleDriveService())
+        self.google_integrations = google_integrations or GoogleIntegrationsService()
 
     @staticmethod
     def _error(status: int, message: str) -> APIResponse:
@@ -228,6 +231,12 @@ class MobileAPIService:
             blocked = self._authorize(headers)
             if blocked is not None:
                 return blocked
+
+            if route == "/v1/integrations/google/status" and verb == "GET":
+                return APIResponse(
+                    200,
+                    {"ok": True, "overview": self.google_integrations.overview().to_dict()},
+                )
 
             if route == "/v1/integrations/google-calendar/status" and verb == "GET":
                 response = self.calendar_api.dispatch(verb, route)

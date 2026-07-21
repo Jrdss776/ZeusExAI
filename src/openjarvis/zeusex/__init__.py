@@ -52,6 +52,11 @@ from openjarvis.zeusex.marketplace_listings import (
     ShopeeAdapter,
 )
 from openjarvis.zeusex.mobile_api import APIResponse, MobileAPIService
+from openjarvis.zeusex.mobile_server import (
+    MobileServerConfig,
+    create_mobile_server,
+    serve_mobile_api,
+)
 from openjarvis.zeusex.multichannel import (
     MarketplaceCopy,
     MultichannelPackage,
@@ -110,6 +115,7 @@ __all__ = [
     "MercadoLivreAdapter",
     "MercadoLivreReadClient",
     "MobileAPIService",
+    "MobileServerConfig",
     "MultichannelPackage",
     "NormalizedListing",
     "NullSpeechCapture",
@@ -154,6 +160,7 @@ __all__ = [
     "campaign_from_mapping",
     "compare_listings",
     "create_advertisement_draft",
+    "create_mobile_server",
     "default_registry",
     "diagnose_provider",
     "discover_skills",
@@ -161,6 +168,7 @@ __all__ = [
     "generate_campaign",
     "generate_multichannel_content",
     "open_allowed_application",
+    "serve_mobile_api",
     "suggest_combinations",
     "voice_status",
 ]

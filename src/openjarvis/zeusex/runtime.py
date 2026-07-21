@@ -138,7 +138,7 @@ class ZeusRuntime:
             return "Informe o que devo lembrar."
         with self._connect() as connection:
             connection.execute(
-                "INSERT INTO memories(content, created_at) VALUES (?, ?, ?)",
+                "INSERT INTO memories(content, created_at) VALUES (?, ?)",
                 (clean_content, self._now()),
             )
         return f"Memória registrada: {clean_content}"

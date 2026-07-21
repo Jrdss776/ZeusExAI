@@ -315,3 +315,25 @@ def test_mobile_api_cli_uses_environment_token(tmp_path) -> None:
     assert result.exit_code == 0
     assert '"status": 200' in result.output
     assert "token-local-seguro-123" not in result.output
+
+
+def test_mobile_serve_requires_token_and_loopback(tmp_path) -> None:
+    runner = CliRunner()
+    missing = runner.invoke(
+        zeusex,
+        ["mobile-serve"],
+        env={"ZEUSEX_DATA_DIR": str(tmp_path)},
+    )
+    external = runner.invoke(
+        zeusex,
+        ["mobile-serve", "--host", "0.0.0.0"],
+        env={
+            "ZEUSEX_DATA_DIR": str(tmp_path),
+            "ZEUSEX_MOBILE_API_TOKEN": "token-local-seguro-123",
+        },
+    )
+
+    assert missing.exit_code != 0
+    assert "ZEUSEX_MOBILE_API_TOKEN" in missing.output
+    assert external.exit_code != 0
+    assert "loopback" in external.output

@@ -23,6 +23,8 @@ from openjarvis.zeusex.commercial_batch import (
 )
 from openjarvis.zeusex.google_calendar import GoogleCalendarService
 from openjarvis.zeusex.google_calendar_api import GoogleCalendarAPI
+from openjarvis.zeusex.gmail import GmailService
+from openjarvis.zeusex.gmail_api import GmailAPI
 from openjarvis.zeusex.marketplace import PotentialSignals
 from openjarvis.zeusex.report_store import AnalysisReportStore
 from openjarvis.zeusex.scheduler import SafeScheduler
@@ -167,6 +169,7 @@ class MobileAPIService:
         queue: AnalysisQueue | None = None,
         authenticator: LocalAPIAuthenticator | None = None,
         calendar_api: GoogleCalendarAPI | None = None,
+        gmail_api: GmailAPI | None = None,
     ) -> None:
         self.reports = reports
         self.templates = templates
@@ -174,6 +177,7 @@ class MobileAPIService:
         self.queue = queue
         self.authenticator = authenticator
         self.calendar_api = calendar_api or GoogleCalendarAPI(GoogleCalendarService())
+        self.gmail_api = gmail_api or GmailAPI(GmailService())
 
     @staticmethod
     def _error(status: int, message: str) -> APIResponse:
@@ -234,6 +238,18 @@ class MobileAPIService:
                 and verb == "POST"
             ):
                 response = self.calendar_api.dispatch(verb, route, body)
+                return APIResponse(response.status, response.body)
+
+            if route == "/v1/integrations/gmail/status" and verb == "GET":
+                response = self.gmail_api.dispatch(verb, route)
+                return APIResponse(response.status, response.body)
+
+            if route == "/v1/integrations/gmail/messages" and verb == "GET":
+                response = self.gmail_api.dispatch(verb, route, query=query)
+                return APIResponse(response.status, response.body)
+
+            if route == "/v1/integrations/gmail/drafts/preview" and verb == "POST":
+                response = self.gmail_api.dispatch(verb, route, body)
                 return APIResponse(response.status, response.body)
 
             if verb == "GET" and route == "/v1/reports":

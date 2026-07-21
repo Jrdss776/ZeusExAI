@@ -139,6 +139,21 @@ DASHBOARD_HTML = """<!doctype html>
     </div>
   </section>
   <section>
+    <h2>Gmail</h2>
+    <p class="muted">Triagem opcional e prévia local. O painel não envia mensagens.</p>
+    <label for="gmail-payload">Resposta para revisão em JSON</label>
+    <textarea id="gmail-payload">{
+  "recipients": ["cliente@example.com"],
+  "subject": "Resposta do ZeusExAI",
+  "body": "Revise esta mensagem antes de qualquer envio externo."
+}</textarea>
+    <div class="actions">
+      <button data-action="gmailStatus">Status do Gmail</button>
+      <button data-action="gmailUnread">Mensagens não lidas</button>
+      <button data-action="gmailPreview">Revisar resposta local</button>
+    </div>
+  </section>
+  <section>
     <h2>Resposta</h2>
     <p class="muted">Os dados abaixo permanecem neste aparelho.</p>
     <pre id="result">Pronto.</pre>
@@ -155,7 +170,10 @@ DASHBOARD_HTML = """<!doctype html>
     templates: ["GET", "/v1/campaign-templates", null],
     calendarStatus: ["GET", "/v1/integrations/google-calendar/status", null],
     calendarEvents: ["GET", "/v1/integrations/google-calendar/events", null],
-    calendarPreview: ["POST", "/v1/integrations/google-calendar/events/preview", "calendar-payload"]
+    calendarPreview: ["POST", "/v1/integrations/google-calendar/events/preview", "calendar-payload"],
+    gmailStatus: ["GET", "/v1/integrations/gmail/status", null],
+    gmailUnread: ["GET", "/v1/integrations/gmail/messages?q=is%3Aunread", null],
+    gmailPreview: ["POST", "/v1/integrations/gmail/drafts/preview", "gmail-payload"]
   };
 
   async function callAPI(action) {

@@ -29,10 +29,19 @@ informa `external_action_performed: false`. O envio exige simultaneamente:
 Nenhuma credencial, token, mensagem ou rascunho é persistido por este módulo.
 Exclusão, arquivamento, marcação e alteração de mensagens não estão disponíveis.
 
+## Painel móvel local
+
+A PWA oferece controles autenticados para consultar o estado da integração,
+listar mensagens não lidas e revisar uma resposta. O conteúdo permanece na
+memória da página; não é gravado em `localStorage` ou `sessionStorage`.
+
+O servidor móvel não expõe `/messages/send`. Mesmo quando um conector
+`draft_and_send` é fornecido, o painel só acessa a prévia local. O envio real
+continua restrito à aplicação hospedeira e exige confirmação explícita.
+
 ## Próximos passos
 
 1. adaptador OAuth opcional em pacote separado;
 2. armazenamento de credenciais pelo sistema operacional;
-3. triagem visual somente-leitura;
-4. pré-visualização de respostas no painel móvel;
-5. fundação equivalente para Google Drive.
+3. adaptador OAuth opcional em pacote separado;
+4. fundação equivalente para Google Drive.

@@ -102,7 +102,7 @@ class AgentPlanQueue:
         )
 
     def enqueue(self, plan: AgentPlan, *, ttl_minutes: int | None = None) -> QueuedAgentPlan:
-        ttl = ttl_minutes or self.default_ttl_minutes
+        ttl = self.default_ttl_minutes if ttl_minutes is None else ttl_minutes
         if not 1 <= ttl <= 43_200:
             raise ValueError("ttl_minutes precisa estar entre 1 e 43200.")
         now = self._now()

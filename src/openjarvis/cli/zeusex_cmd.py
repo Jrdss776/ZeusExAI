@@ -428,6 +428,7 @@ def _mobile_api_service() -> MobileAPIService:
         _report_store(),
         _campaign_template_store(),
         _safe_scheduler(),
+        queue=_analysis_queue(),
         authenticator=authenticator,
     )
 

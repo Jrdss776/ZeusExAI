@@ -6,11 +6,11 @@ handler explicitamente registrado pela aplicação hospedeira.
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Mapping
-import re
-import unicodedata
 
 
 class CommandDomain(str, Enum):
@@ -64,7 +64,9 @@ CommandHandler = Callable[[str, Mapping[str, Any]], Any]
 
 def _normalize(text: str) -> str:
     decomposed = unicodedata.normalize("NFKD", text.casefold())
-    ascii_text = "".join(char for char in decomposed if not unicodedata.combining(char))
+    ascii_text = "".join(
+        char for char in decomposed if not unicodedata.combining(char)
+    )
     return " ".join(re.findall(r"[a-z0-9]+", ascii_text))
 
 
@@ -131,12 +133,19 @@ _SENSITIVE_TERMS = (
 class CommandOrchestrator:
     """Classifica e despacha comandos para handlers registrados."""
 
-    def __init__(self, handlers: Mapping[CommandDomain | str, CommandHandler] | None = None) -> None:
+    def __init__(
+        self,
+        handlers: Mapping[CommandDomain | str, CommandHandler] | None = None,
+    ) -> None:
         self._handlers: dict[CommandDomain, CommandHandler] = {}
         for domain, handler in (handlers or {}).items():
             self.register(domain, handler)
 
-    def register(self, domain: CommandDomain | str, handler: CommandHandler) -> None:
+    def register(
+        self,
+        domain: CommandDomain | str,
+        handler: CommandHandler,
+    ) -> None:
         if not callable(handler):
             raise TypeError("handler precisa ser chamável.")
         self._handlers[CommandDomain(domain)] = handler
@@ -158,11 +167,14 @@ class CommandOrchestrator:
                 best_matches = matches
                 best_score = score
 
-        requires_confirmation = any(_normalize(term) in normalized for term in _SENSITIVE_TERMS)
-        if best_domain is CommandDomain.ASSISTANT:
-            confidence = 0.25
-        else:
-            confidence = min(0.99, 0.55 + (0.08 * best_score))
+        requires_confirmation = any(
+            _normalize(term) in normalized for term in _SENSITIVE_TERMS
+        )
+        confidence = (
+            0.25
+            if best_domain is CommandDomain.ASSISTANT
+            else min(0.99, 0.55 + (0.08 * best_score))
+        )
 
         return CommandDecision(
             domain=best_domain,

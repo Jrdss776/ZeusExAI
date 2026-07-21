@@ -17,6 +17,9 @@ class CommandDomain(str, Enum):
     """Domínios suportados pelo orquestrador central."""
 
     ASSISTANT = "assistant"
+    MEMORY = "memory"
+    PROJECT = "project"
+    GOAL = "goal"
     COMMERCIAL_ANALYSIS = "commercial_analysis"
     CAMPAIGN = "campaign"
     ACHADINHOS = "achadinhos"
@@ -71,6 +74,33 @@ def _normalize(text: str) -> str:
 
 
 _DOMAIN_TERMS: dict[CommandDomain, tuple[str, ...]] = {
+    CommandDomain.GOAL: (
+        "criar objetivo",
+        "criar meta",
+        "listar objetivos",
+        "progresso da meta",
+        "progresso do objetivo",
+        "registrar medicao",
+        "atualizar indicador",
+        "sistema de objetivos",
+    ),
+    CommandDomain.PROJECT: (
+        "criar projeto",
+        "listar projetos",
+        "adicionar tarefa",
+        "tarefas do projeto",
+        "status do projeto",
+        "decisao do projeto",
+        "gerenciador de projetos",
+    ),
+    CommandDomain.MEMORY: (
+        "lembrar inteligente",
+        "memoria inteligente",
+        "buscar memoria",
+        "minhas preferencias",
+        "decisoes do projeto",
+        "o que voce lembra",
+    ),
     CommandDomain.ACHADINHOS: (
         "achadinhos",
         "achadinhos do jr",

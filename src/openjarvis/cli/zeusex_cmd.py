@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import json
+import os
 
 import click
 from rich.console import Console
@@ -11,6 +12,7 @@ from rich.table import Table
 
 from openjarvis.zeusex import ZEUSEX_IDENTITY
 from openjarvis.zeusex.analysis_360 import analysis_360_from_mapping
+from openjarvis.zeusex.auth import LocalAPIAuthenticator
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker
 from openjarvis.zeusex.campaign_store import CampaignTemplateStore
@@ -32,6 +34,7 @@ from openjarvis.zeusex.mobile_api import MobileAPIService
 from openjarvis.zeusex.multichannel import generate_multichannel_content
 from openjarvis.zeusex.report_store import AnalysisReportStore
 from openjarvis.zeusex.runtime import RuntimeConfig, ZeusRuntime
+from openjarvis.zeusex.schedule_executor import ScheduleExecutor
 from openjarvis.zeusex.scheduler import ALLOWED_JOB_TYPES, SafeScheduler
 from openjarvis.zeusex.setup_assistant import build_setup_plan
 from openjarvis.zeusex.skills import default_registry
@@ -418,10 +421,13 @@ def _safe_scheduler() -> SafeScheduler:
 
 
 def _mobile_api_service() -> MobileAPIService:
+    token = os.getenv("ZEUSEX_MOBILE_API_TOKEN", "").strip()
+    authenticator = LocalAPIAuthenticator.from_secret(token) if token else None
     return MobileAPIService(
         _report_store(),
         _campaign_template_store(),
         _safe_scheduler(),
+        authenticator=authenticator,
     )
 
 
@@ -792,6 +798,43 @@ def schedule_list(status: str | None) -> None:
         )
 
 
+@schedule_group.command("run-one")
+def schedule_run_one() -> None:
+    """Executa uma tarefa vencida usando somente handlers permitidos."""
+
+    def run_analysis(payload: dict[str, object]) -> object:
+        report = analysis_360_from_mapping(payload)
+        return {"report_id": _report_store().save(report).id}
+
+    def run_campaign(payload: dict[str, object]) -> object:
+        return campaign_from_mapping(payload).to_dict()
+
+    def run_marketplace_queue(payload: dict[str, object]) -> object:
+        marketplace = str(payload.get("marketplace") or "")
+        item_payload = payload.get("payload") or {}
+        if not isinstance(item_payload, dict):
+            raise ValueError("payload interno precisa ser um objeto.")
+        job = _analysis_queue().enqueue(marketplace, item_payload)
+        return {"job_id": job.id}
+
+    outcome = ScheduleExecutor(
+        _safe_scheduler(),
+        {
+            "analysis360": run_analysis,
+            "campaign": run_campaign,
+            "marketplace_queue": run_marketplace_queue,
+        },
+    ).run_once()
+    if not outcome.processed or outcome.task is None:
+        click.echo("Nenhuma tarefa vencida.")
+        return
+    click.echo(
+        f"Agendamento {outcome.task.id}: {outcome.task.status}"
+        + (f" — {outcome.task.error}" if outcome.task.error else "")
+        + "."
+    )
+
+
 @zeusex.command("mobile-api")
 @click.argument("method", type=click.Choice(["GET", "POST"], case_sensitive=False))
 @click.argument("path")
@@ -805,7 +848,17 @@ def mobile_api_command(method: str, path: str, body: str) -> None:
         raise click.ClickException("O corpo precisa ser um objeto JSON válido.") from exc
     if not isinstance(decoded, dict):
         raise click.ClickException("O corpo precisa ser um objeto JSON.")
-    response = _mobile_api_service().dispatch(method, path, decoded)
+    token = os.getenv("ZEUSEX_MOBILE_API_TOKEN", "").strip()
+    headers = {"Authorization": f"Bearer {token}"} if token else None
+    try:
+        response = _mobile_api_service().dispatch(
+            method,
+            path,
+            decoded,
+            headers=headers,
+        )
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
     click.echo(
         json.dumps(
             {"status": response.status, **response.body},

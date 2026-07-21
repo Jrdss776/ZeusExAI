@@ -28,6 +28,7 @@ from openjarvis.zeusex.beta_support import (
     build_beta_support_snapshot,
     write_beta_support_report,
 )
+from openjarvis.zeusex.beta_smoke import run_beta_smoke_test
 from openjarvis.zeusex.analysis_queue import AnalysisQueue
 from openjarvis.zeusex.analysis_worker import AnalysisWorker
 from openjarvis.zeusex.campaign_store import CampaignTemplateStore
@@ -140,6 +141,20 @@ def beta_report(output: str, replace: bool) -> None:
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(f"Relatório Beta salvo em: {target}")
+
+
+@zeusex.command("beta-smoke")
+def beta_smoke() -> None:
+    """Executa um teste Beta isolado sem acessar dados reais."""
+
+    result = run_beta_smoke_test()
+    for step in result.steps:
+        click.echo(f"[{'OK' if step.ok else 'FALHA'}] {step.name}: {step.message}")
+    cleanup = "OK" if result.temporary_data_removed else "FALHA"
+    click.echo(f"[{cleanup}] limpeza: Dados temporários removidos.")
+    click.echo(f"Teste Beta: {'APROVADO' if result.ok else 'REPROVADO'}")
+    if not result.ok:
+        raise click.exceptions.Exit(1)
 
 
 @zeusex.command("setup-plan")

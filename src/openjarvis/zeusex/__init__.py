@@ -40,6 +40,11 @@ from openjarvis.zeusex.beta_support import (
     build_beta_support_snapshot,
     write_beta_support_report,
 )
+from openjarvis.zeusex.beta_smoke import (
+    BetaSmokeResult,
+    BetaSmokeStep,
+    run_beta_smoke_test,
+)
 from openjarvis.zeusex.campaign_store import (
     CampaignTemplateStore,
     SavedCampaignTemplate,
@@ -209,6 +214,8 @@ __all__ = [
     "BetaReadinessCheck",
     "BetaReadinessReport",
     "BetaSupportSnapshot",
+    "BetaSmokeResult",
+    "BetaSmokeStep",
     "CampaignPackage",
     "CampaignTemplate",
     "CampaignTemplateStore",
@@ -341,6 +348,7 @@ __all__ = [
     "migrate_android_databases",
     "open_allowed_application",
     "restore_android_backup",
+    "run_beta_smoke_test",
     "rank_opportunities",
     "recommend_price",
     "serve_mobile_api",

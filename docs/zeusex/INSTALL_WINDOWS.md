@@ -12,7 +12,7 @@
 ```powershell
 git clone https://github.com/Jrdss776/ZeusExAI.git
 cd ZeusExAI
-git switch develop-zeusex
+git switch main
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip

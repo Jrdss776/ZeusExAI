@@ -10,6 +10,7 @@ on:
       - ".github/workflows/zeusex-ci.yml"
   push:
     branches:
+      - main
       - develop-zeusex
     paths:
       - "src/openjarvis/zeusex/**"

@@ -11,5 +11,5 @@
     "jarvis zeusex beta-report"
   ],
   "external_actions_default": "disabled",
-  "release_state": "candidate"
+  "release_state": "ready"
 }

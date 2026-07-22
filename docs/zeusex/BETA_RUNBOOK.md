@@ -43,3 +43,16 @@ Encerre processos do ZeusExAI, preserve a pasta definida em `ZEUSEX_DATA_DIR` e
 retorne ao código anterior. Não exclua ou substitua bancos sem backup verificado.
 No Android/Termux, use o fluxo de backup e restauração documentado antes de cada
 atualização.
+
+## 7. Publicação
+
+A publicação deve usar a tag `v0.9.0-beta.1` apontando para o commit validado da
+branch `main`. Antes de criar a release, confirme:
+
+- todos os checks remotos aprovados;
+- `beta-acceptance` com resultado `Aceitação Beta: APROVADA`;
+- notas da release revisadas;
+- ações externas desativadas por padrão;
+- instruções de instalação e rollback disponíveis.
+
+Publique como **pré-lançamento**. Não marque esta versão como `latest` estável.

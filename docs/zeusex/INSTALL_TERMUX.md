@@ -19,7 +19,7 @@ pkg install python git clang rust
 python -m pip install --upgrade pip
 git clone https://github.com/Jrdss776/ZeusExAI.git
 cd ZeusExAI
-git switch develop-zeusex
+git switch main
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .

@@ -41,6 +41,7 @@ from openjarvis.cli.telemetry_cmd import telemetry
 from openjarvis.cli.tool_cmd import tool
 from openjarvis.cli.vault_cmd import vault
 from openjarvis.cli.workflow_cmd import workflow
+from openjarvis.cli.zeusex_cmd import zeusex
 
 
 @click.group(
@@ -60,10 +61,6 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool) -> None:
     ctx.obj["quiet"] = quiet
     setup_logging(verbose=verbose, quiet=quiet)
 
-    # Check for updates on interactive commands. The banner is noise in
-    # demo recordings of ``jarvis ask --research``, so skip it whenever
-    # the research flag is in argv (cheap argv sniff — Click hasn't
-    # parsed the subcommand's args yet at this point).
     import sys
 
     research_mode_active = "--research" in sys.argv
@@ -72,19 +69,12 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool) -> None:
 
         from openjarvis.cli._version_check import check_for_updates
 
-        # Run the PyPI version poll off the hot path: on a cache miss it does
-        # a blocking urlopen (up to 3s) that otherwise delays every command,
-        # notably `jarvis serve` startup (#263). It's best-effort and never
-        # raises, and the nudge prints to stderr, so a daemon thread is safe —
-        # for long-lived commands (serve) it finishes; for short commands that
-        # exit first, the check is simply skipped this run (same as a miss).
         threading.Thread(
             target=check_for_updates,
             args=(ctx.invoked_subcommand,),
             daemon=True,
         ).start()
 
-    # First-run guard — routes bare `jarvis` to chat or init.
     if ctx.invoked_subcommand is None:
         from openjarvis.cli._first_run import check_and_route
 
@@ -128,11 +118,8 @@ cli.add_command(config, "config")
 cli.add_command(scan, "scan")
 cli.add_command(connect, "connect")
 cli.add_command(digest, "digest")
-# deep-research setup pulls the ingestion pipeline (embeddings/numpy). Guard it
-# so a broken or slow numpy on Windows — which can raise at IMPORT time, not
-# just ImportError (#404) — can never take down the whole CLI, including
-# `jarvis serve`. Invoking `jarvis deep-research-setup` without the deps still
-# errors clearly on demand.
+cli.add_command(zeusex, "zeusex")
+
 try:
     from openjarvis.cli.deep_research_setup_cmd import deep_research_setup
 
@@ -145,7 +132,6 @@ except Exception as _dr_exc:
 cli.add_command(self_update, "self-update")
 cli.add_command(bootstrap_cmd, "_bootstrap")
 
-# Gateway CLI commands (lazy import to avoid pulling starlette)
 try:
     from openjarvis.cli.auth_cmd import auth
 

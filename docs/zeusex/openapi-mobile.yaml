@@ -1,0 +1,265 @@
+openapi: 3.1.0
+info:
+  title: ZeusEXai Mobile API
+  version: 0.3.0
+  description: >-
+    API local autenticada para Android/Termux. Não oferece publicação,
+    compras, mensagens ou shell.
+servers:
+  - url: http://127.0.0.1:8765
+    description: Servidor opt-in limitado ao próprio aparelho.
+security:
+  - localBearer: []
+paths:
+  /v1/status:
+    get:
+      security: []
+      summary: Verifica o serviço local
+      responses:
+        "200":
+          description: Serviço disponível
+  /v1/reports:
+    get:
+      summary: Lista relatórios comerciais
+      responses:
+        "200":
+          description: Relatórios salvos
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/reports/{report_id}:
+    get:
+      summary: Obtém um relatório em JSON e Markdown
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Relatório encontrado
+        "404":
+          description: Relatório não encontrado
+  /v1/campaign-templates:
+    get:
+      summary: Lista modelos de campanha
+      responses:
+        "200":
+          description: Modelos locais
+  /v1/schedules:
+    get:
+      summary: Lista tarefas agendadas
+      responses:
+        "200":
+          description: Agenda local
+    post:
+      summary: Agenda uma tarefa permitida
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleRequest"
+      responses:
+        "201":
+          description: Tarefa agendada
+        "400":
+          description: Dados inválidos
+  /v1/queue:
+    get:
+      summary: Lista a fila comercial
+      responses:
+        "200":
+          description: Trabalhos da fila
+        "503":
+          description: Fila não configurada
+  /v1/analysis360:
+    post:
+      summary: Executa uma Análise 360 sem publicação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommercialPayload"
+      responses:
+        "200":
+          description: Análise criada
+        "201":
+          description: Análise criada e salva
+        "400":
+          description: Dados inválidos
+  /v1/campaign:
+    post:
+      summary: Gera campanha Achadinhos do JR sem publicação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommercialPayload"
+      responses:
+        "200":
+          description: Campanha gerada
+        "400":
+          description: Dados inválidos
+  /v1/achadinhos:
+    post:
+      summary: Analisa um lote e gera campanhas somente para oportunidades aprovadas
+      description: >-
+        Normaliza dados de Shopee ou Mercado Livre, calcula rentabilidade,
+        aplica ranking auditável e devolve campanhas e rejeições. Não publica anúncios.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AchadinhosBatchRequest"
+      responses:
+        "200":
+          description: Seleção e campanhas geradas localmente
+        "400":
+          description: Estrutura, custos, sinais ou política inválidos
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+components:
+  securitySchemes:
+    localBearer:
+      type: http
+      scheme: bearer
+  responses:
+    Unauthorized:
+      description: Token local ausente ou inválido
+  schemas:
+    CommercialPayload:
+      type: object
+      required: [product]
+      properties:
+        save:
+          type: boolean
+          default: false
+        product:
+          type: object
+          additionalProperties: true
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        signals:
+          type: object
+          additionalProperties: true
+        competitors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        catalog:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    AchadinhosBatchRequest:
+      type: object
+      required: [marketplace, payload, costs_by_listing]
+      properties:
+        marketplace:
+          type: string
+          enum: [shopee, mercado_livre, mercado livre]
+        payload:
+          type: object
+          description: Anúncio individual ou envelope items, data.items ou results.
+          additionalProperties: true
+        costs_by_listing:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/CommercialCosts"
+        default_costs:
+          $ref: "#/components/schemas/CommercialCosts"
+        attributes_by_listing:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: string
+        signals_by_listing:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PotentialSignals"
+        competitors_by_listing:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              additionalProperties: true
+        catalog_by_listing:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              additionalProperties: true
+        policy:
+          $ref: "#/components/schemas/AchadinhosPolicy"
+    CommercialCosts:
+      type: object
+      required: [product_cost]
+      properties:
+        product_cost:
+          type: string
+        marketplace_fee_percent:
+          type: string
+          default: "0"
+        fixed_fee:
+          type: string
+          default: "0"
+        shipping_cost:
+          type: string
+          default: "0"
+        tax_percent:
+          type: string
+          default: "0"
+    PotentialSignals:
+      type: object
+      required: [demand, competition, margin, listing_quality]
+      properties:
+        demand:
+          type: string
+        competition:
+          type: string
+        margin:
+          type: string
+        listing_quality:
+          type: string
+    AchadinhosPolicy:
+      type: object
+      properties:
+        minimum_score:
+          type: string
+          default: "50"
+        allowed_classifications:
+          type: array
+          items:
+            type: string
+            enum: [alto, moderado, baixo]
+          default: [alto, moderado]
+        maximum_items:
+          type: integer
+          minimum: 1
+        target_margin_percent:
+          type: string
+          default: "20"
+    ScheduleRequest:
+      type: object
+      required: [job_type, scheduled_for, payload]
+      properties:
+        job_type:
+          type: string
+          enum: [analysis360, campaign, marketplace_queue]
+        scheduled_for:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true

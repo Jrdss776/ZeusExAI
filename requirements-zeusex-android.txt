@@ -1,0 +1,3 @@
+# O servidor Android local usa somente a biblioteca padrão do Python.
+# Instale o projeto base em modo editável:
+-e .

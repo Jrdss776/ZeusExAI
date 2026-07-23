@@ -19,6 +19,10 @@ Oferecer uma visão consolidada da fila de planos, aprovações, rejeições, ex
 - `GET /v1/agent/governance/status`
 - `GET /v1/agent/governance/overview`
 
+Essas rotas também são expostas pelo `MobileAPIService` quando o painel é
+explicitamente configurado. Elas usam a autenticação local já existente e
+retornam `503` quando a dependência não foi habilitada.
+
 Não existem rotas de aprovação, rejeição ou execução nesta camada. Os métodos equivalentes da API retornam `PermissionError`.
 
 ## Garantias de segurança

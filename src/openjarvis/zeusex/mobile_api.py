@@ -7,6 +7,8 @@ from datetime import datetime
 from typing import Any, Mapping, Sequence
 from urllib.parse import parse_qs, urlsplit
 
+from openjarvis.zeusex.agent_governance_dashboard_api import AgentGovernanceDashboardAPI
+from openjarvis.zeusex.agent_governance_history_api import AgentGovernanceHistoryAPI
 from openjarvis.zeusex.achadinhos_pipeline import (
     AchadinhosSelectionPolicy,
     build_achadinhos_campaigns,
@@ -54,7 +56,9 @@ def _mapping_of_mappings(value: object, *, field: str) -> dict[str, Mapping[str,
     return result
 
 
-def _sequence_of_mappings(value: object, *, field: str) -> tuple[Mapping[str, Any], ...]:
+def _sequence_of_mappings(
+    value: object, *, field: str
+) -> tuple[Mapping[str, Any], ...]:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
         raise ValueError(f"{field} precisa ser uma lista.")
     result: list[Mapping[str, Any]] = []
@@ -63,7 +67,9 @@ def _sequence_of_mappings(value: object, *, field: str) -> tuple[Mapping[str, An
     return tuple(result)
 
 
-def _achadinhos_request(payload: Mapping[str, Any]) -> tuple[
+def _achadinhos_request(
+    payload: Mapping[str, Any],
+) -> tuple[
     CommercialBatchRequest,
     AchadinhosSelectionPolicy,
     dict[str, tuple[CatalogItem, ...]],
@@ -121,9 +127,13 @@ def _achadinhos_request(payload: Mapping[str, Any]) -> tuple[
     normalized_policy = dict(policy_data)
     allowed = normalized_policy.get("allowed_classifications")
     if allowed is not None:
-        if not isinstance(allowed, Sequence) or isinstance(allowed, (str, bytes, bytearray)):
+        if not isinstance(allowed, Sequence) or isinstance(
+            allowed, (str, bytes, bytearray)
+        ):
             raise ValueError("policy.allowed_classifications precisa ser uma lista.")
-        normalized_policy["allowed_classifications"] = frozenset(str(item) for item in allowed)
+        normalized_policy["allowed_classifications"] = frozenset(
+            str(item) for item in allowed
+        )
     policy = AchadinhosSelectionPolicy(**normalized_policy)
 
     raw_catalog = _mapping(
@@ -177,6 +187,8 @@ class MobileAPIService:
         drive_api: GoogleDriveAPI | None = None,
         google_integrations: GoogleIntegrationsService | None = None,
         google_setup_api: GoogleSetupAPI | None = None,
+        governance_api: AgentGovernanceDashboardAPI | None = None,
+        governance_history_api: AgentGovernanceHistoryAPI | None = None,
     ) -> None:
         self.reports = reports
         self.templates = templates
@@ -188,6 +200,8 @@ class MobileAPIService:
         self.drive_api = drive_api or GoogleDriveAPI(GoogleDriveService())
         self.google_integrations = google_integrations or GoogleIntegrationsService()
         self.google_setup_api = google_setup_api or GoogleSetupAPI()
+        self.governance_api = governance_api
+        self.governance_history_api = governance_history_api
 
     @staticmethod
     def _error(status: int, message: str) -> APIResponse:
@@ -235,10 +249,50 @@ class MobileAPIService:
             if blocked is not None:
                 return blocked
 
+            if route == "/v1/agent/governance/status" and verb == "GET":
+                if self.governance_api is None:
+                    return self._error(503, "Painel de governança não configurado.")
+                return APIResponse(200, {"ok": True, **self.governance_api.status()})
+
+            if route == "/v1/agent/governance/overview" and verb == "GET":
+                if self.governance_api is None:
+                    return self._error(503, "Painel de governança não configurado.")
+                limit = int(query.get("limit", "50"))
+                return APIResponse(
+                    200,
+                    {"ok": True, "overview": self.governance_api.overview(limit=limit)},
+                )
+
+            if route == "/v1/agent/governance/history/status" and verb == "GET":
+                if self.governance_history_api is None:
+                    return self._error(503, "Histórico de governança não configurado.")
+                return APIResponse(
+                    200, {"ok": True, **self.governance_history_api.status()}
+                )
+
+            if route == "/v1/agent/governance/history" and verb == "GET":
+                if self.governance_history_api is None:
+                    return self._error(503, "Histórico de governança não configurado.")
+                days = int(query.get("days", "30"))
+                limit = int(query.get("limit", "500"))
+                return APIResponse(
+                    200,
+                    {
+                        "ok": True,
+                        "history": self.governance_history_api.report(
+                            days=days,
+                            limit=limit,
+                        ),
+                    },
+                )
+
             if route == "/v1/integrations/google/status" and verb == "GET":
                 return APIResponse(
                     200,
-                    {"ok": True, "overview": self.google_integrations.overview().to_dict()},
+                    {
+                        "ok": True,
+                        "overview": self.google_integrations.overview().to_dict(),
+                    },
                 )
 
             if route == "/v1/integrations/google/setup/preview" and verb == "POST":

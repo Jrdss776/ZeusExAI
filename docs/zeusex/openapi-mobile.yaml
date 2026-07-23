@@ -18,6 +18,73 @@ paths:
       responses:
         "200":
           description: Serviço disponível
+  /v1/agent/governance/status:
+    get:
+      summary: Informa o modo somente leitura do painel de governança
+      responses:
+        "200":
+          description: Estado e capacidades bloqueadas do painel
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Painel de governança não configurado
+  /v1/agent/governance/overview:
+    get:
+      summary: Retorna a visão consolidada de governança
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Planos, recibos, políticas, auditoria e alertas
+        "400":
+          description: Parâmetro inválido
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Painel de governança não configurado
+  /v1/agent/governance/history/status:
+    get:
+      summary: Informa os limites do histórico de governança
+      responses:
+        "200":
+          description: Estado somente leitura e limites de consulta
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Histórico de governança não configurado
+  /v1/agent/governance/history:
+    get:
+      summary: Retorna o relatório histórico de governança
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 500
+      responses:
+        "200":
+          description: Totais, agrupamentos e série diária
+        "400":
+          description: Parâmetro ou período inválido
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Histórico de governança não configurado
   /v1/reports:
     get:
       summary: Lista relatórios comerciais

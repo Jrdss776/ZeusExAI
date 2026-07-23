@@ -22,6 +22,10 @@ Permitir acompanhamento temporal da governança sem alterar planos, recibos, pol
 
 A classe `AgentGovernanceHistoryAPI` oferece os equivalentes locais `status()` e `report(days, limit)`. A integração HTTP pode delegar essas rotas sem conceder qualquer capacidade de escrita.
 
+O `MobileAPIService` delega essas consultas quando o histórico é explicitamente
+configurado, após aplicar a autenticação local. Sem configuração, as rotas
+retornam `503`.
+
 ## Limites
 
 - período mínimo: 1 dia;

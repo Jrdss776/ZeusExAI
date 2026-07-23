@@ -56,3 +56,20 @@ branch `main`. Antes de criar a release, confirme:
 - instruções de instalação e rollback disponíveis.
 
 Publique como **pré-lançamento**. Não marque esta versão como `latest` estável.
+
+### Distribuição opcional
+
+A release fonte no GitHub não depende da publicação no PyPI nem de instaladores
+Desktop. Esses canais permanecem desativados até que suas credenciais externas
+estejam configuradas:
+
+- cadastre o Trusted Publisher no PyPI para este repositório, workflow e ambiente;
+- defina `PYPI_PUBLISH_ENABLED=true` nas variáveis do repositório somente depois
+  de validar esse cadastro;
+- configure a chave do atualizador Tauri e as credenciais de assinatura das
+  plataformas Desktop;
+- defina `DESKTOP_PUBLISH_ENABLED=true` somente depois de validar todos os
+  segredos exigidos.
+
+Sem essas variáveis, os workflows ainda constroem e validam o que é seguro, mas
+registram a distribuição como desativada em vez de tentar um upload incompleto.

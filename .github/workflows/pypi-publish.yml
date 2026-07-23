@@ -3,9 +3,6 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -110,5 +107,12 @@ jobs:
           uv publish --publish-url https://test.pypi.org/legacy/
 
       - name: Publish to PyPI
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && vars.PYPI_PUBLISH_ENABLED == 'true' }}
         run: uv publish
+
+      - name: Report disabled production publishing
+        if: ${{ !inputs.dry_run && vars.PYPI_PUBLISH_ENABLED != 'true' }}
+        run: |
+          echo "::notice::PyPI publishing is disabled."
+          echo "Set the repository variable PYPI_PUBLISH_ENABLED=true only after"
+          echo "the Trusted Publisher for this repository and environment is configured."

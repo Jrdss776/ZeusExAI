@@ -1015,7 +1015,7 @@ def android_package_manifest() -> None:
 
 
 @android_group.command("update-plan")
-@click.option("--ref", "git_ref", default="develop-zeusex", show_default=True)
+@click.option("--ref", "git_ref", default="main", show_default=True)
 def android_update_plan(git_ref: str) -> None:
     try:
         plan = build_android_update_plan(git_ref)

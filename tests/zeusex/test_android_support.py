@@ -122,9 +122,9 @@ def test_backup_rejects_same_source_and_destination(tmp_path) -> None:
 
 
 def test_update_plan_requires_safe_git_reference() -> None:
-    plan = build_android_update_plan("develop-zeusex")
+    plan = build_android_update_plan()
 
-    assert plan.ref == "develop-zeusex"
+    assert plan.ref == "main"
     assert "backup" in plan.render().lower()
     assert "apagar" in plan.render().lower()
     with pytest.raises(ValueError, match="Git inválida"):

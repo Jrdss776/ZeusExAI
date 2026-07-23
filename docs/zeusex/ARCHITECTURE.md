@@ -112,4 +112,8 @@ Níveis 3, 4 e 5 devem exigir confirmação conforme contexto e política config
 
 ## Estratégia de desenvolvimento
 
-A branch `main` permanece estável. As alterações do ZeusExAI serão desenvolvidas em `develop-zeusex`, organizadas em commits pequenos e revisáveis. Novas funcionalidades devem preferir configuração, extensão e skills antes de alterações profundas no núcleo original.
+A branch `main` permanece estável e é a referência para instalação e atualização.
+Novas alterações devem ser desenvolvidas em branches de trabalho curtas, organizadas
+em commits pequenos e revisáveis, e integradas por pull request. Novas funcionalidades
+devem preferir configuração, extensão e skills antes de alterações profundas no núcleo
+original.

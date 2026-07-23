@@ -295,7 +295,7 @@ class AndroidUpdatePlan:
         )
 
 
-def build_android_update_plan(ref: str = "develop-zeusex") -> AndroidUpdatePlan:
+def build_android_update_plan(ref: str = "main") -> AndroidUpdatePlan:
     clean_ref = ref.strip()
     if (
         not clean_ref

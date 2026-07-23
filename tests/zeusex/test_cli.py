@@ -356,6 +356,7 @@ def test_android_cli_diagnose_manifest_and_update_plan(tmp_path) -> None:
     assert '"bind_host": "127.0.0.1"' in manifest.output
     assert plan.exit_code == 0
     assert "backup" in plan.output.lower()
+    assert "'main'" in plan.output
 
 
 def test_android_backup_requires_explicit_confirmation(tmp_path) -> None:

@@ -1,0 +1,87 @@
+name: ZeusExAI Beta Bug
+description: Report a problem found while testing ZeusExAI v0.9.0-beta.1
+title: "[Beta] "
+labels: ["type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing ZeusExAI Beta. Do not include passwords, API keys,
+        tokens, private prompts, or other sensitive data in this report.
+  - type: input
+    id: version
+    attributes:
+      label: ZeusExAI version
+      description: Run `jarvis --version` or provide the release/tag you installed.
+      placeholder: v0.9.0-beta.1
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options:
+        - Source checkout with uv
+        - Python package
+        - Desktop installer
+        - Container
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime details
+      description: Include Python version and, for Desktop, the CPU architecture.
+      placeholder: Python 3.12.4 / Windows 11 x64
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the exact command or action and the smallest reproducible sequence.
+      placeholder: |
+        1. Run ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics
+      description: Paste relevant logs or a sanitized `jarvis beta-report` output.
+      render: shell
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: I removed passwords, API keys, tokens, private prompts, and personal data from this report.
+          required: true
+        - label: I checked the existing issues for a matching Beta report.
+          required: true

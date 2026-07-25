@@ -31,9 +31,8 @@ describe('governance API', () => {
   });
 
   it('surfaces the service error message', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 503, json: async () => ({ error: 'Painel nÃ£o configurado.' }) })));
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 503, json: async () => ({ error: 'Painel não configurado.' }) })));
     const { fetchGovernanceStatus } = await import('./api');
-    await expect(fetchGovernanceStatus()).rejects.toThrow('Painel nÃ£o configurado.');
+    await expect(fetchGovernanceStatus()).rejects.toThrow('Painel não configurado.');
   });
 });
-

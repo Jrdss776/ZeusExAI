@@ -22,7 +22,7 @@ export default function App() {
   const [setupDone, setSetupDone] = useState(!isTauri());
   const handleSetupReady = useCallback(() => {
     setSetupDone(true);
-    // Only fire once per install â€” guard against setup screen re-appearing
+    // Only fire once per install — guard against setup screen re-appearing
     // on reinstalls or dev reloads.
     if (!localStorage.getItem('oj-setup-completed')) {
       localStorage.setItem('oj-setup-completed', '1');
@@ -129,7 +129,7 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fire model_changed when the user switches models. First mount is
-  // not a "change" â€” only emit when both prev and current are real and
+  // not a "change" — only emit when both prev and current are real and
   // differ.
   useEffect(() => {
     const prev = prevModelRef.current;
@@ -148,7 +148,7 @@ export default function App() {
     })();
   }, [selectedModel]);
 
-  // app_opened â€” one-shot per app launch, fires after analytics has had
+  // app_opened — one-shot per app launch, fires after analytics has had
   // a chance to initialize. platform + version are super-properties
   // registered in analytics.ts initAnalytics, so no per-call props needed.
   useEffect(() => {
@@ -204,4 +204,3 @@ export default function App() {
     </>
   );
 }
-

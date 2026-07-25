@@ -115,7 +115,7 @@ export function GovernancePage() {
         )}
 
         {loading && !overview ? (
-          <div className="flex min-h-64 items-center justify-center gap-3" style={{ color: 'var(--color-text-secondary)' }}><Loader2 className="animate-spin" size={20} /> Loading governance controlsâ€¦</div>
+          <div className="flex min-h-64 items-center justify-center gap-3" style={{ color: 'var(--color-text-secondary)' }}><Loader2 className="animate-spin" size={20} /> Loading governance controls…</div>
         ) : (
           <>
             <Panel className="mb-4">
@@ -124,7 +124,7 @@ export function GovernancePage() {
                   {safe ? <CheckCircle2 size={24} style={{ color: 'var(--color-success)' }} /> : <AlertTriangle size={24} style={{ color: 'var(--color-warning)' }} />}
                   <div><h2 className="font-medium">{safe ? 'Read-only boundary active' : 'Safety status needs attention'}</h2><p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>Approval, rejection, execution and external actions remain disabled.</p></div>
                 </div>
-                <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ color: safe ? 'var(--color-success)' : 'var(--color-warning)', background: safe ? 'color-mix(in srgb, var(--color-success) 10%, transparent)' : 'var(--color-accent-amber-subtle)' }}>{safe ? 'SAFE Â· READ ONLY' : 'VERIFY CONFIGURATION'}</span>
+                <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ color: safe ? 'var(--color-success)' : 'var(--color-warning)', background: safe ? 'color-mix(in srgb, var(--color-success) 10%, transparent)' : 'var(--color-accent-amber-subtle)' }}>{safe ? 'SAFE · READ ONLY' : 'VERIFY CONFIGURATION'}</span>
               </div>
             </Panel>
 
@@ -161,4 +161,3 @@ export function GovernancePage() {
     </div>
   );
 }
-

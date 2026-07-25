@@ -17,6 +17,7 @@ import {
   Loader2,
   ScrollText,
   Database,
+  ShieldCheck,
 } from 'lucide-react';
 import { ConversationList } from './ConversationList';
 import { useAppStore } from '../../lib/store';
@@ -57,6 +58,7 @@ export function Sidebar() {
     { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
     { path: '/data-sources', icon: Database, label: 'Data Sources' },
     { path: '/agents', icon: Bot, label: 'Agents' },
+    { path: '/governance', icon: ShieldCheck, label: 'Governance' },
     { path: '/logs', icon: ScrollText, label: 'Logs' },
     { path: '/settings', icon: Settings, label: 'Settings' },
     { path: '/get-started', icon: Rocket, label: 'Get Started' },
@@ -163,7 +165,7 @@ export function Sidebar() {
                 className="text-[10px] px-1.5 py-0.5 rounded font-mono"
                 style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)' }}
               >
-                ⌘K
+                âŒ˜K
               </kbd>
             )}
           </button>
@@ -233,3 +235,4 @@ export function Sidebar() {
     </>
   );
 }
+

@@ -7,7 +7,7 @@ afterEach(() => {
 
 describe('governance API', () => {
   it('uses only the four read-only governance endpoints', async () => {
-    const fetchMock = vi.fn(async (input: string) => {
+    const fetchMock = vi.fn(async (input: string, _init?: RequestInit) => {
       const leaf = input.endsWith('/status') ? { mode: 'read_only' } :
         input.includes('/history?') ? { history: { read_only: true } } :
           { overview: { read_only: true } };

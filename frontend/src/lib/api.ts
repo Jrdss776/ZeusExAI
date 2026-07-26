@@ -119,6 +119,75 @@ export const apiFetch = (
   return fetch(`${getBase()}${path}`, { ...init, headers });
 };
 
+// ---------------------------------------------------------------------------
+// Agent governance (strictly read-only)
+// ---------------------------------------------------------------------------
+
+export interface GovernanceStatus {
+  enabled: boolean;
+  mode: 'read_only';
+  can_approve: false;
+  can_reject: false;
+  can_execute: false;
+  external_actions_enabled: false;
+  maximum_period_days?: number;
+  maximum_items?: number;
+}
+
+export interface GovernanceAlert {
+  level: string;
+  code: string;
+  message: string;
+}
+
+export interface GovernanceOverview {
+  generated_at: string;
+  summary: Record<string, number>;
+  queue: Array<Record<string, unknown>>;
+  receipts: Array<Record<string, unknown>>;
+  policies: Array<Record<string, unknown>>;
+  audit_events: Array<Record<string, unknown>>;
+  alerts: GovernanceAlert[];
+  read_only: true;
+  can_approve: false;
+  can_execute: false;
+  external_actions_enabled: false;
+}
+
+export interface GovernanceHistory {
+  generated_at: string;
+  period: { days: number; from: string; to: string };
+  totals: Record<string, number>;
+  plans_by_status: Record<string, number>;
+  executions_by_status: Record<string, number>;
+  audit_by_event: Record<string, number>;
+  audit_by_action: Record<string, number>;
+  daily: Array<Record<string, number | string>>;
+  read_only: true;
+  external_actions_enabled: false;
+}
+
+async function governanceJson<T>(path: string, key?: string): Promise<T> {
+  const res = await apiFetch(path);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Governance service unavailable (${res.status})`);
+  }
+  return (key ? data[key] : data) as T;
+}
+
+export const fetchGovernanceStatus = (): Promise<GovernanceStatus> =>
+  governanceJson('/v1/agent/governance/status');
+
+export const fetchGovernanceOverview = (limit = 50): Promise<GovernanceOverview> =>
+  governanceJson(`/v1/agent/governance/overview?limit=${limit}`, 'overview');
+
+export const fetchGovernanceHistoryStatus = (): Promise<GovernanceStatus> =>
+  governanceJson('/v1/agent/governance/history/status');
+
+export const fetchGovernanceHistory = (days = 30, limit = 500): Promise<GovernanceHistory> =>
+  governanceJson(`/v1/agent/governance/history?days=${days}&limit=${limit}`, 'history');
+
 async function tauriInvoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   const { invoke } = await import('@tauri-apps/api/core');
   const apiUrl = getBase();

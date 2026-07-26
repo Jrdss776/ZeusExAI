@@ -317,6 +317,23 @@ def test_mobile_api_cli_uses_environment_token(tmp_path) -> None:
     assert "token-local-seguro-123" not in result.output
 
 
+def test_mobile_api_cli_exposes_read_only_governance(tmp_path) -> None:
+    env = {
+        "ZEUSEX_DATA_DIR": str(tmp_path),
+        "ZEUSEX_MOBILE_API_TOKEN": "token-local-seguro-123",
+    }
+    result = CliRunner().invoke(
+        zeusex,
+        ["mobile-api", "GET", "/v1/agent/governance/status"],
+        env=env,
+    )
+
+    assert result.exit_code == 0
+    assert '"status": 200' in result.output
+    assert '"mode": "read_only"' in result.output
+    assert '"can_execute": false' in result.output
+
+
 def test_mobile_serve_requires_token_and_loopback(tmp_path) -> None:
     runner = CliRunner()
     missing = runner.invoke(

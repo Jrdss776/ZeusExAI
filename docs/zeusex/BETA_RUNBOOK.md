@@ -1,4 +1,4 @@
-# ZeusExAI 0.9.0-beta.1 — Roteiro de validação
+# ZeusExAI 0.9.0-beta.2 — Roteiro de validação
 
 ## 1. Instalação
 
@@ -28,6 +28,21 @@ A Beta está pronta para uso local quando `beta-acceptance` termina com
 Comece pelos comandos `status`, `ask` e `chat`. Ative voz, painel móvel e
 integrações separadamente. Ações sensíveis devem continuar exigindo confirmação.
 
+### Validação do painel de Governança
+
+Defina `ZEUSEX_MOBILE_API_TOKEN` com pelo menos 16 caracteres e execute:
+
+```powershell
+jarvis zeusex mobile-api GET /v1/agent/governance/status
+jarvis zeusex mobile-api GET /v1/agent/governance/overview
+jarvis zeusex mobile-api GET /v1/agent/governance/history/status
+jarvis zeusex mobile-api GET "/v1/agent/governance/history?days=7"
+```
+
+Todos os comandos devem responder com status `200`. Confirme também `mode` como
+`read_only`, `can_execute` como `false` e `external_actions_enabled` como `false`.
+O painel não deve oferecer rotas de aprovação, rejeição ou execução.
+
 ## 5. Relatório de problemas
 
 ```powershell
@@ -46,7 +61,7 @@ atualização.
 
 ## 7. Publicação
 
-A publicação deve usar a tag `v0.9.0-beta.1` apontando para o commit validado da
+A publicação deve usar a tag `v0.9.0-beta.2` apontando para o commit validado da
 branch `main`. Antes de criar a release, confirme:
 
 - todos os checks remotos aprovados;

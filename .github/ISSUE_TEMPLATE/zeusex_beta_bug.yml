@@ -1,5 +1,5 @@
 name: ZeusExAI Beta Bug
-description: Report a problem found while testing ZeusExAI v0.9.0-beta.1
+description: Report a problem found while testing ZeusExAI v0.9.0-beta.2
 title: "[Beta] "
 labels: ["type:bug"]
 body:
@@ -13,7 +13,7 @@ body:
     attributes:
       label: ZeusExAI version
       description: Run `jarvis --version` or provide the release/tag you installed.
-      placeholder: v0.9.0-beta.1
+      placeholder: v0.9.0-beta.2
     validations:
       required: true
   - type: dropdown

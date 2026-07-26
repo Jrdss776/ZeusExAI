@@ -36,6 +36,7 @@ from openjarvis.zeusex.campaign_store import CampaignTemplateStore
 from openjarvis.zeusex.campaigns import CampaignTemplate, campaign_from_mapping
 from openjarvis.zeusex.diagnostics import diagnose_provider
 from openjarvis.zeusex.engines import EngineSettings, build_engine
+from openjarvis.zeusex.governance_runtime import build_governance_runtime_apis
 from openjarvis.zeusex.marketplace_http import (
     MarketplaceHTTPError,
     MercadoLivreReadClient,
@@ -516,12 +517,16 @@ def _safe_scheduler() -> SafeScheduler:
 def _mobile_api_service() -> MobileAPIService:
     token = os.getenv("ZEUSEX_MOBILE_API_TOKEN", "").strip()
     authenticator = LocalAPIAuthenticator.from_secret(token) if token else None
+    data_dir = RuntimeConfig.from_env().data_dir
+    governance = build_governance_runtime_apis(data_dir)
     return MobileAPIService(
         _report_store(),
         _campaign_template_store(),
         _safe_scheduler(),
         queue=_analysis_queue(),
         authenticator=authenticator,
+        governance_api=governance.dashboard,
+        governance_history_api=governance.history,
     )
 
 

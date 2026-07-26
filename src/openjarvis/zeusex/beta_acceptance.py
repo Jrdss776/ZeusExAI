@@ -11,7 +11,7 @@ from openjarvis.zeusex.beta_readiness import (
 )
 from openjarvis.zeusex.beta_smoke import BetaSmokeResult, run_beta_smoke_test
 
-BETA_VERSION = "0.9.0-beta.1"
+BETA_VERSION = "0.9.0-beta.2"
 
 
 @dataclass(frozen=True, slots=True)

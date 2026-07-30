@@ -16,6 +16,16 @@ import type {
   ToolCallInfo,
 } from '../../types';
 
+export const COMMERCIAL_COMMAND_KEY = 'zeusex-commercial-command';
+
+export function consumeCommercialCommand(
+  storage: Pick<Storage, 'getItem' | 'removeItem'>,
+): string {
+  const command = storage.getItem(COMMERCIAL_COMMAND_KEY)?.trim() ?? '';
+  if (command) storage.removeItem(COMMERCIAL_COMMAND_KEY);
+  return command;
+}
+
 // While Deep Research is toggled on, poll connected sources for sync
 // progress so we can surface "Searching over N items — sync in progress"
 // next to the toggle. Polling is gated on `enabled` so toggling DR off
@@ -96,6 +106,13 @@ export function InputArea() {
   const deepResearch = useAppStore((s) => s.deepResearch);
   const setDeepResearch = useAppStore((s) => s.setDeepResearch);
   const corpusSync = useResearchCorpusSync(deepResearch);
+
+  useEffect(() => {
+    const prepared = consumeCommercialCommand(sessionStorage);
+    if (!prepared) return;
+    setInput(prepared);
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }, []);
 
   const {
     state: speechState,

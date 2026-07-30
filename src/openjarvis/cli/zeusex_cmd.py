@@ -57,6 +57,7 @@ from openjarvis.zeusex.schedule_executor import ScheduleExecutor
 from openjarvis.zeusex.scheduler import ALLOWED_JOB_TYPES, SafeScheduler
 from openjarvis.zeusex.setup_assistant import build_setup_plan
 from openjarvis.zeusex.skills import default_registry
+from openjarvis.zeusex.stable_readiness import assess_stable_readiness
 from openjarvis.zeusex.voice import VoiceConfig, voice_status
 from openjarvis.zeusex.voice_backends import (
     VoiceBackendError,
@@ -179,6 +180,40 @@ def beta_acceptance() -> None:
     click.echo(f"Smoke test: {'APROVADO' if result.smoke.ok else 'REPROVADO'}")
     click.echo(f"Aceitação Beta: {'APROVADA' if result.approved else 'BLOQUEADA'}")
     if not result.approved:
+        raise click.exceptions.Exit(1)
+
+
+@zeusex.command("stable-readiness")
+@click.option("--beta-days", type=click.IntRange(0), required=True)
+@click.option("--acceptance-runs", type=click.IntRange(0), required=True)
+@click.option(
+    "--platform",
+    "platforms",
+    type=click.Choice(["windows", "android"], case_sensitive=False),
+    multiple=True,
+)
+@click.option("--open-critical-bugs", type=click.IntRange(0), required=True)
+def stable_readiness(
+    beta_days: int,
+    acceptance_runs: int,
+    platforms: tuple[str, ...],
+    open_critical_bugs: int,
+) -> None:
+    """Avalia evidências explícitas antes de promover a Beta à versão estável."""
+
+    report = assess_stable_readiness(
+        beta_days=beta_days,
+        acceptance_runs=acceptance_runs,
+        validated_platforms=platforms,
+        open_critical_bugs=open_critical_bugs,
+    )
+    for check in report.checks:
+        click.echo(f"[{'OK' if check.status == 'ok' else 'BLOQUEIO'}] {check.component}: {check.message}")
+    click.echo(
+        f"Prontidão Estável: {'APROVADA' if report.ready else 'BLOQUEADA'} | "
+        f"bloqueios={report.blockers}"
+    )
+    if not report.ready:
         raise click.exceptions.Exit(1)
 
 

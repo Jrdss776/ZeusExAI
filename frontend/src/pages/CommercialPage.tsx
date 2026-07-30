@@ -66,6 +66,18 @@ const modules = [
   { icon: Gauge, title: 'Inteligência competitiva', text: 'Posicionamento, diferenciais, preço e nível de concorrência.' },
 ];
 
+export function buildCommercialCommand(prompt: string, product: string) {
+  return [
+    prompt + '.',
+    product.trim()
+      ? `Produto ou link: ${product.trim()}`
+      : 'Produto ou link: [adicione as informações do produto]',
+    'Use o modo Achadinhos do JR.',
+    'Não invente vendas, avaliações, preços ou métricas ausentes.',
+    'Entregue o resultado em português do Brasil, pronto para revisão.',
+  ].join('\n');
+}
+
 const radarItems = [
   'Potencial de vendas',
   'Nível de concorrência',
@@ -82,16 +94,7 @@ export function CommercialPage() {
 
   const current = actions.find((action) => action.id === selected) ?? actions[0];
   const command = useMemo(
-    () =>
-      [
-        current.prompt + '.',
-        product.trim()
-          ? `Produto ou link: ${product.trim()}`
-          : 'Produto ou link: [adicione as informações do produto]',
-        'Use o modo Achadinhos do JR.',
-        'Não invente vendas, avaliações, preços ou métricas ausentes.',
-        'Entregue o resultado em português do Brasil, pronto para revisão.',
-      ].join('\n'),
+    () => buildCommercialCommand(current.prompt, product),
     [current, product],
   );
 

@@ -18,6 +18,7 @@ import {
   ScrollText,
   Database,
   ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import { ConversationList } from './ConversationList';
 import { useAppStore } from '../../lib/store';
@@ -56,6 +57,7 @@ export function Sidebar() {
   const navItems = [
     { path: '/', icon: MessageSquare, label: 'Chat' },
     { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
+    { path: '/commercial', icon: Zap, label: 'Central Comercial' },
     { path: '/data-sources', icon: Database, label: 'Data Sources' },
     { path: '/agents', icon: Bot, label: 'Agents' },
     { path: '/governance', icon: ShieldCheck, label: 'Governance' },

@@ -107,11 +107,15 @@ def collect_commercial_evidence(
     engine, model = _engine_and_model(request, payload.model)
     policy = CommercialModelPolicy.from_env(model)
     try:
-        return RoutedEvidenceCollector(
-            engine,
-            policy,
-            WebSearchTool(max_results=8),
-        ).collect(payload.subject).to_dict()
+        return (
+            RoutedEvidenceCollector(
+                engine,
+                policy,
+                WebSearchTool(max_results=8),
+            )
+            .collect(payload.subject)
+            .to_dict()
+        )
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

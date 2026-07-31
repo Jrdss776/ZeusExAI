@@ -119,6 +119,66 @@ export const apiFetch = (
   return fetch(`${getBase()}${path}`, { ...init, headers });
 };
 
+export type CommercialAction = 'analysis' | 'listing' | 'video' | 'strategy' | 'complete';
+
+export interface CommercialSpecialistOutput {
+  role: string;
+  content: string;
+  assertions: Array<{ text: string; source_urls: string[]; claim_fields: string[] }>;
+  assumptions: string[];
+  missing_information: string[];
+  model: string;
+}
+
+export interface CommercialEvidenceDossier {
+  subject: string;
+  sources: Array<{ url: string; title: string; retrieved_at: string }>;
+  claims: Array<{ field: string; value: unknown; source_urls: string[] }>;
+  missing_fields: string[];
+  warnings: string[];
+  collector_model: string;
+}
+
+export interface CommercialPipelineResult {
+  action: CommercialAction;
+  status: 'completed' | 'blocked' | 'needs_review';
+  dossier: CommercialEvidenceDossier | null;
+  outputs: CommercialSpecialistOutput[];
+  errors: string[];
+  blocked_reason: string;
+}
+
+export async function runCommercialPipeline(
+  action: CommercialAction,
+  dossier: CommercialEvidenceDossier,
+): Promise<CommercialPipelineResult> {
+  const response = await apiFetch('/v1/commercial/orchestrate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, dossier }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Falha comercial (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function collectCommercialEvidence(
+  subject: string,
+): Promise<CommercialEvidenceDossier> {
+  const response = await apiFetch('/v1/commercial/collect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subject }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Falha na coleta (${response.status})`);
+  }
+  return response.json();
+}
+
 // ---------------------------------------------------------------------------
 // Agent governance (strictly read-only)
 // ---------------------------------------------------------------------------

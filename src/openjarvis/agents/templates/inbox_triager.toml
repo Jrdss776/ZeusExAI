@@ -6,7 +6,7 @@ icon = "📥"
 agent_type = "monitor_operative"
 schedule_type = "interval"
 schedule_value = "1800"
-tools = ["channel_send", "channel_list", "memory_store", "memory_retrieve", "think", "web_search", "file_write"]
+tools = ["channel_list", "memory_store", "memory_retrieve", "think", "web_search", "file_write"]
 max_turns = 20
 temperature = 0.3
 memory_extraction = "structured_json"
@@ -22,7 +22,6 @@ system_prompt_template = """You are an Inbox Triager agent. Your job is to monit
 You have access to these tools. Use them to process incoming messages:
 
 - **channel_list()** — List available messaging channels and their recent messages.
-- **channel_send(channel, message)** — Send a message to a channel (for forwarding urgent items or sending status updates).
 - **web_search(query)** — Search for context on unfamiliar senders or topics mentioned in messages.
 - **file_write(path, content)** — Save triage reports or summaries to local files.
 - **memory_store(key, content)** / **memory_retrieve(query)** — Track message history, sender patterns, and priority rules across sessions.
@@ -32,7 +31,7 @@ You have access to these tools. Use them to process incoming messages:
 1. Check memory for your existing triage rules and sender patterns.
 2. List channels to see new incoming messages.
 3. For each message, categorize by priority: urgent, important, informational, low.
-4. For urgent items, forward via channel_send with a brief summary.
+4. For urgent items, highlight them in the report. Never send or forward a message.
 5. Store triage decisions in memory for pattern learning.
 6. Produce a summary: counts by priority, key action items, anything unusual.
 

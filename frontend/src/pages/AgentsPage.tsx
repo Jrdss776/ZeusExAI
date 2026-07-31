@@ -283,6 +283,8 @@ const TEMPLATE_INSTRUCTIONS: Record<string, string> = {
   'meeting_prep': 'Before my next meeting, pull context from my emails, messages, and past meetings with the attendees. Summarize key topics and suggest talking points.',
   'personal_deep_research': 'Search across all my personal data — messages, emails, meetings, documents, and notes — to answer [my question]. Cite your sources.',
   'inbox_triager': 'Check my recent emails and messages. Categorize them by priority (urgent, important, FYI, spam). Summarize the top items I should act on.',
+  'gmail_assistant': 'Verifique meus e-mails recentes, destaque o que exige atenção e prepare rascunhos de resposta sem enviar nada.',
+  'google_calendar_assistant': 'Revise meus próximos compromissos e convites, destaque conflitos e prepare sugestões sem alterar minha agenda.',
 };
 
 function Tooltip({ text }: { text: string }) {

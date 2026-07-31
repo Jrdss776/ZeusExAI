@@ -6,11 +6,14 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
 
-from openjarvis.core.types import ToolResult
-from openjarvis.server import commercial_router
-from openjarvis.server.commercial_router import (
+pytest.importorskip("fastapi", reason="openjarvis[server] not installed")
+
+from fastapi import HTTPException  # noqa: E402
+
+from openjarvis.core.types import ToolResult  # noqa: E402
+from openjarvis.server import commercial_router  # noqa: E402
+from openjarvis.server.commercial_router import (  # noqa: E402
     CommercialCollectionRequest,
     CommercialOrchestrationRequest,
 )
@@ -29,9 +32,24 @@ class SequencedEngine:
                 "missing_fields": ["product.sales"],
                 "warnings": [],
             },
-            {"content": "Análise", "assertions": [], "assumptions": [], "missing_information": []},
-            {"content": "Concorrência", "assertions": [], "assumptions": [], "missing_information": []},
-            {"content": "Revisão", "assertions": [], "assumptions": [], "missing_information": []},
+            {
+                "content": "Análise",
+                "assertions": [],
+                "assumptions": [],
+                "missing_information": [],
+            },
+            {
+                "content": "Concorrência",
+                "assertions": [],
+                "assumptions": [],
+                "missing_information": [],
+            },
+            {
+                "content": "Revisão",
+                "assertions": [],
+                "assumptions": [],
+                "missing_information": [],
+            },
         ]
 
     def generate(self, messages, **kwargs):

@@ -9,11 +9,7 @@ import tomllib
 from openjarvis.agents.manager import AgentManager
 
 TEMPLATE_DIR = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "openjarvis"
-    / "agents"
-    / "templates"
+    Path(__file__).resolve().parents[2] / "src" / "openjarvis" / "agents" / "templates"
 )
 
 
@@ -35,8 +31,7 @@ def test_gmail_assistant_is_read_first_and_never_has_direct_send_tool() -> None:
     assert 'action_type="email_archive"' in template["system_prompt_template"]
     assert 'action_type="email_delete"' in template["system_prompt_template"]
     assert (
-        'payload={{"message_id":"<message_id>"}}'
-        in template["system_prompt_template"]
+        'payload={{"message_id":"<message_id>"}}' in template["system_prompt_template"]
     )
     assert "gmail:<message_id>" in template["system_prompt_template"]
     assert 'tier="high"' in template["system_prompt_template"]

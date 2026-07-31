@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
+  collectCommercialEvidence,
+  runCommercialPipeline,
+  type CommercialAction as CommercialActionId,
+  type CommercialEvidenceDossier,
+  type CommercialPipelineResult,
+} from '../lib/api';
+import {
   BarChart3,
   Bot,
   Check,
@@ -19,7 +26,7 @@ import {
 } from 'lucide-react';
 
 type CommercialAction = {
-  id: string;
+  id: Exclude<CommercialActionId, 'complete'>;
   label: string;
   description: string;
   icon: typeof Search;
@@ -91,6 +98,10 @@ export function CommercialPage() {
   const [selected, setSelected] = useState(actions[0].id);
   const [product, setProduct] = useState('');
   const [copied, setCopied] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [dossier, setDossier] = useState<CommercialEvidenceDossier | null>(null);
+  const [pipelineResult, setPipelineResult] = useState<CommercialPipelineResult | null>(null);
+  const [pipelineError, setPipelineError] = useState('');
 
   const current = actions.find((action) => action.id === selected) ?? actions[0];
   const command = useMemo(
@@ -114,6 +125,35 @@ export function CommercialPage() {
     navigate('/');
   };
 
+  const collectEvidence = async () => {
+    const subject = product.trim();
+    if (!subject || running) return;
+    setRunning(true);
+    setPipelineError('');
+    setPipelineResult(null);
+    try {
+      setDossier(await collectCommercialEvidence(subject));
+    } catch (error) {
+      setPipelineError(error instanceof Error ? error.message : 'Não foi possível coletar as evidências.');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const approveAndRun = async () => {
+    if (!dossier || running) return;
+    setRunning(true);
+    setPipelineError('');
+    setPipelineResult(null);
+    try {
+      setPipelineResult(await runCommercialPipeline(current.id, dossier));
+    } catch (error) {
+      setPipelineError(error instanceof Error ? error.message : 'Não foi possível executar os especialistas.');
+    } finally {
+      setRunning(false);
+    }
+  };
+
   return (
     <div className="relative h-full overflow-y-auto">
       <div className="hud-backdrop" />
@@ -127,7 +167,10 @@ export function CommercialPage() {
                 IA comercial local e governada
               </div>
               <h1 className="max-w-3xl text-3xl font-semibold tracking-tight md:text-5xl">
-                Olá! Eu sou o <span className="text-[var(--color-accent)]">ZeusEx</span> 🤖⚡
+                Olá! Eu sou o{' '}
+                <span className="whitespace-nowrap">
+                  <span className="text-[var(--color-accent)]">ZeusEx</span> 🤖⚡
+                </span>
               </h1>
               <p className="mt-4 max-w-2xl text-base text-[var(--color-text-secondary)] md:text-lg">
                 Inteligência estratégica para analisar produtos, criar anúncios e vender melhor
@@ -201,7 +244,12 @@ export function CommercialPage() {
           </div>
           <textarea
             value={product}
-            onChange={(event) => setProduct(event.target.value)}
+            onChange={(event) => {
+              setProduct(event.target.value);
+              setDossier(null);
+              setPipelineResult(null);
+              setPipelineError('');
+            }}
             placeholder="Ex.: link da Shopee/Mercado Livre, nome do produto, custo, preço e diferenciais..."
             className="min-h-28 w-full resize-y rounded-xl border border-[var(--color-input-border)] bg-[var(--color-input-bg)] p-4 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
           />
@@ -217,13 +265,118 @@ export function CommercialPage() {
             <button
               type="button"
               onClick={openChat}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-5 py-2.5 text-sm font-medium text-[var(--color-on-accent)] transition hover:bg-[var(--color-accent-hover)]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-tertiary)]"
             >
               Preparar no chat
               <Send size={16} />
             </button>
+            <button
+              type="button"
+              onClick={dossier ? approveAndRun : collectEvidence}
+              disabled={running || !product.trim()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-5 py-2.5 text-sm font-medium text-[var(--color-on-accent)] transition hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {running
+                ? 'Jarvis trabalhando...'
+                : dossier
+                  ? 'Aprovar e executar especialistas'
+                  : 'Coletar evidências'}
+              <Bot size={16} />
+            </button>
           </div>
         </section>
+
+        {(pipelineError || dossier || pipelineResult) && (
+          <section className="hud-panel p-5 md:p-6" aria-live="polite">
+            <div className="mb-4 flex items-center gap-3">
+              <Bot size={20} className="text-[var(--color-accent)]" />
+              <div>
+                <p className="hud-label">ORQUESTRAÇÃO DO JARVIS</p>
+                <h2 className="font-semibold">
+                  {pipelineResult ? 'Resultado dos especialistas' : 'Revise a ficha antes de aprovar'}
+                </h2>
+              </div>
+            </div>
+            {pipelineError && <p className="text-sm text-[var(--color-danger)]">{pipelineError}</p>}
+            {dossier && !pipelineResult && (
+              <div className="grid gap-4">
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Confira os fatos e as fontes abaixo. Os especialistas ainda não foram executados.
+                </p>
+                {dossier.collector_model && (
+                  <p className="text-xs text-[var(--color-text-tertiary)]">
+                    Modelo coletor: {dossier.collector_model}
+                  </p>
+                )}
+                {dossier.warnings.map((warning) => (
+                  <p key={warning} className="text-sm text-[var(--color-warning)]">{warning}</p>
+                ))}
+                <div className="rounded-xl border border-[var(--color-border)] p-4">
+                  <h3 className="font-medium">Fatos verificados</h3>
+                  <dl className="mt-3 grid gap-3">
+                    {dossier.claims.map((claim) => (
+                      <div key={`${claim.field}-${claim.source_urls.join(',')}`}>
+                        <dt className="text-xs text-[var(--color-text-tertiary)]">{claim.field}</dt>
+                        <dd className="text-sm">
+                          {typeof claim.value === 'string' ? claim.value : JSON.stringify(claim.value)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+                <div className="rounded-xl border border-[var(--color-border)] p-4">
+                  <h3 className="font-medium">Fontes consultadas</h3>
+                  <ul className="mt-3 grid gap-2 text-sm">
+                    {dossier.sources.map((source) => (
+                      <li key={source.url}>
+                        <a className="text-[var(--color-accent)] underline" href={source.url} target="_blank" rel="noreferrer">
+                          {source.title || source.url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {dossier.missing_fields.length > 0 && (
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Não encontrados: {dossier.missing_fields.join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+            {pipelineResult && (
+              <div className="grid gap-4">
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Status: <strong>{pipelineResult.status}</strong>
+                  {pipelineResult.blocked_reason ? ` — ${pipelineResult.blocked_reason}` : ''}
+                </p>
+                {pipelineResult.errors.map((error) => (
+                  <p key={error} className="text-sm text-[var(--color-danger)]">{error}</p>
+                ))}
+                {pipelineResult.dossier && (
+                  <details className="rounded-xl border border-[var(--color-border)] p-4">
+                    <summary className="cursor-pointer font-medium">Ficha de evidências</summary>
+                    <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
+                      {pipelineResult.dossier.claims.length} fatos verificados ·{' '}
+                      {pipelineResult.dossier.sources.length} fontes ·{' '}
+                      {pipelineResult.dossier.missing_fields.length} campos ausentes
+                    </p>
+                  </details>
+                )}
+                {pipelineResult.outputs.map((output) => (
+                  <article key={output.role} className="rounded-xl border border-[var(--color-border)] p-4">
+                    <p className="hud-label">{output.role.split('_').join(' ')}</p>
+                    {output.model && (
+                      <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                        Modelo usado: {output.model}
+                      </p>
+                    )}
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{output.content}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <section>
           <p className="hud-label">RECURSOS COMERCIAIS</p>

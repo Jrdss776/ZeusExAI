@@ -4,7 +4,7 @@ import { MessageBubble } from './MessageBubble';
 import { InputArea } from './InputArea';
 import { StreamingDots } from './StreamingDots';
 import { useAppStore } from '../../lib/store';
-import { Sparkles, PanelRightOpen, PanelRightClose, Database, MessageSquare, X } from 'lucide-react';
+import { Brain, PanelRightOpen, PanelRightClose, Database, MessageSquare, X } from 'lucide-react';
 import { listConnectors } from '../../lib/connectors-api';
 
 function getGreeting(): string {
@@ -71,7 +71,17 @@ export function ChatArea() {
   return (
     <div className="flex flex-col h-full">
       {/* Toggle bar */}
-      <div className="flex items-center justify-end px-3 py-1.5 shrink-0">
+      <div className="flex items-center justify-end gap-1 px-3 py-1.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('zeusex-toggle-brain'))}
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs transition-colors cursor-pointer"
+          style={{ color: 'var(--color-accent)', border: '1px solid var(--color-border)' }}
+          title="Abrir Second Brain"
+        >
+          <Brain size={15} />
+          Second Brain
+        </button>
         <button
           onClick={toggleSystemPanel}
           className="p-1.5 rounded-md transition-colors cursor-pointer"
@@ -93,7 +103,7 @@ export function ChatArea() {
         >
           <Database size={16} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
           <span style={{ color: 'var(--color-text-secondary)', flex: 1 }}>
-            Connect your data sources (Gmail, iMessage, Slack, etc.) to get personalized answers.
+            Conecte suas fontes de dados para receber respostas ainda mais personalizadas.
           </span>
           <button
             onClick={() => navigate('/data-sources')}
@@ -118,12 +128,13 @@ export function ChatArea() {
       >
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full px-4">
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4"
-              style={{ background: 'var(--color-accent-subtle)', color: 'var(--color-accent)' }}
-            >
-              <Sparkles size={24} />
+            <div className="james-orb mb-5" aria-label="James online">
+              <span className="james-orb-core" />
+              <span className="james-orb-ring" />
             </div>
+            <p className="hud-label mb-2 tracking-[0.28em]" style={{ color: 'var(--color-accent)' }}>
+              JAMES // ONLINE
+            </p>
             <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
               {getGreeting()}
             </h2>
@@ -173,7 +184,7 @@ export function ChatArea() {
                 onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--color-border)')}
               >
                 <Database size={14} style={{ color: 'var(--color-accent)' }} />
-                Connect Data Sources
+                Conectar fontes de dados
               </button>
               <button
                 onClick={() => { navigate('/data-sources'); setTimeout(() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'messaging' })), 100); }}
@@ -187,7 +198,7 @@ export function ChatArea() {
                 onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--color-border)')}
               >
                 <MessageSquare size={14} style={{ color: 'var(--color-accent)' }} />
-                Set Up Messaging Channels
+                Configurar mensagens
               </button>
             </div>
           </div>

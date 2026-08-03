@@ -2725,6 +2725,31 @@ async fn hide_overlay() -> Result<(), String> {
 // App entry point
 // ---------------------------------------------------------------------------
 
+// Desktop builds used to register the web PWA service worker. WebView2 keeps
+// that worker between installer upgrades, so it can serve an obsolete UI even
+// when the executable contains a newer frontend. Run this migration once from
+// the native layer: it removes only service workers and CacheStorage, leaving
+// localStorage (conversations, settings and Second Brain data) untouched.
+const DESKTOP_WEBVIEW_CACHE_MIGRATION: &str = r#"
+void async function () {
+  const marker = 'zeusex-desktop-cache-v1.0.3';
+  if (localStorage.getItem(marker)) return;
+  localStorage.setItem(marker, '1');
+
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+  }
+
+  if ('caches' in window) {
+    const names = await caches.keys();
+    await Promise.all(names.map((name) => caches.delete(name)));
+  }
+
+  window.location.reload();
+}();
+"#;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let backend: SharedBackend = Arc::new(Mutex::new(BackendManager::default()));
@@ -2751,6 +2776,9 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .on_page_load(|webview, _payload| {
+            let _ = webview.eval(DESKTOP_WEBVIEW_CACHE_MIGRATION);
+        })
         .setup(move |app| {
             // System tray
             let show = MenuItemBuilder::with_id("show", "Show / Hide").build(app)?;

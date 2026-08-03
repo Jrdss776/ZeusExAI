@@ -115,6 +115,11 @@ jobs:
           ./download-ollama.sh
 
       - name: Build Windows installers
+        # With updater signing intentionally disabled for this standalone
+        # artifact, Tauri still exits non-zero after producing both bundles
+        # because tauri.conf.json contains the updater public key. The upload
+        # step remains strict and fails the job if either installer is absent.
+        continue-on-error: true
         working-directory: frontend
         env:
           TAURI_CONFIG: '{"bundle":{"createUpdaterArtifacts":false,"externalBin":["binaries/ollama"]}}'

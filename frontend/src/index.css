@@ -23,10 +23,10 @@
     --color-text-tertiary: #a1a1aa;
     --color-text-inverse: #fafafa;
 
-    --color-accent: #0891b2;
-    --color-accent-hover: #0e7490;
-    --color-accent-subtle: rgba(8, 145, 178, 0.08);
-    --color-accent-glow: rgba(8, 145, 178, 0.25);
+    --color-accent: #16a34a;
+    --color-accent-hover: #15803d;
+    --color-accent-subtle: rgba(22, 163, 74, 0.08);
+    --color-accent-glow: rgba(22, 163, 74, 0.25);
 
     --color-accent-amber: #f59e0b;
     --color-accent-amber-hover: #d97706;
@@ -34,7 +34,7 @@
     --color-accent-purple: #8b5cf6;
     --color-accent-purple-hover: #7c3aed;
     --color-accent-purple-subtle: rgba(139, 92, 246, 0.1);
-    --color-accent-blue-subtle: rgba(8, 145, 178, 0.08);
+    --color-accent-blue-subtle: rgba(22, 163, 74, 0.08);
 
     --color-success: #16a34a;
     --color-warning: #ca8a04;
@@ -44,7 +44,7 @@
     --color-input-bg: #ffffff;
     --color-input-border: #d4d4d8;
 
-    --color-user-bubble: #0891b2;
+    --color-user-bubble: #16a34a;
     --color-user-bubble-text: #ffffff;
     --color-on-accent: #ffffff;
     --color-disabled-bg: #e4e4e7;
@@ -82,10 +82,10 @@
     --color-text-tertiary: #5c5c63;
     --color-text-inverse: #0a0a0b;
 
-    --color-accent: #22d3ee;
-    --color-accent-hover: #67e8f9;
-    --color-accent-subtle: rgba(34, 211, 238, 0.1);
-    --color-accent-glow: rgba(34, 211, 238, 0.3);
+    --color-accent: #4ade80;
+    --color-accent-hover: #86efac;
+    --color-accent-subtle: rgba(74, 222, 128, 0.1);
+    --color-accent-glow: rgba(74, 222, 128, 0.3);
 
     --color-accent-amber: #f5a524;
     --color-accent-amber-hover: #fbbf24;
@@ -93,7 +93,7 @@
     --color-accent-purple: #b794ff;
     --color-accent-purple-hover: #c9b0ff;
     --color-accent-purple-subtle: rgba(183, 148, 255, 0.12);
-    --color-accent-blue-subtle: rgba(79, 209, 255, 0.12);
+    --color-accent-blue-subtle: rgba(74, 222, 128, 0.12);
 
     --color-success: #3ddc97;
     --color-warning: #f5a524;
@@ -101,16 +101,16 @@
 
     --color-code-bg: #0c121a;
     --color-input-bg: #0c121a;
-    --color-input-border: rgba(79, 209, 255, 0.12);
+    --color-input-border: rgba(74, 222, 128, 0.12);
 
-    --color-user-bubble: rgba(79, 209, 255, 0.14);
-    --color-user-bubble-text: #e6f1ff;
-    --color-on-accent: #070b11;
+    --color-user-bubble: rgba(74, 222, 128, 0.14);
+    --color-user-bubble-text: #ecfdf5;
+    --color-on-accent: #052e16;
     --color-disabled-bg: #121a24;
 
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-    --shadow-md: 0 4px 14px -2px rgb(0 0 0 / 0.5), 0 0 0 1px rgba(79, 209, 255, 0.04);
-    --shadow-lg: 0 18px 40px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgba(79, 209, 255, 0.06);
+    --shadow-md: 0 4px 14px -2px rgb(0 0 0 / 0.5), 0 0 0 1px rgba(74, 222, 128, 0.04);
+    --shadow-lg: 0 18px 40px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgba(74, 222, 128, 0.06);
 
     color-scheme: dark;
   }
@@ -130,10 +130,10 @@
       --color-text-tertiary: #5c5c63;
       --color-text-inverse: #0a0a0b;
 
-      --color-accent: #22d3ee;
-      --color-accent-hover: #67e8f9;
-      --color-accent-subtle: rgba(34, 211, 238, 0.1);
-      --color-accent-glow: rgba(34, 211, 238, 0.3);
+      --color-accent: #4ade80;
+      --color-accent-hover: #86efac;
+      --color-accent-subtle: rgba(74, 222, 128, 0.1);
+      --color-accent-glow: rgba(74, 222, 128, 0.3);
 
       --color-accent-amber: #f5a524;
       --color-accent-amber-hover: #fbbf24;
@@ -141,7 +141,7 @@
       --color-accent-purple: #b794ff;
       --color-accent-purple-hover: #c9b0ff;
       --color-accent-purple-subtle: rgba(183, 148, 255, 0.12);
-      --color-accent-blue-subtle: rgba(79, 209, 255, 0.12);
+      --color-accent-blue-subtle: rgba(74, 222, 128, 0.12);
 
       --color-success: #3ddc97;
       --color-warning: #f5a524;
@@ -149,16 +149,16 @@
 
       --color-code-bg: #0c121a;
       --color-input-bg: #0c121a;
-      --color-input-border: rgba(79, 209, 255, 0.12);
+      --color-input-border: rgba(74, 222, 128, 0.12);
 
-      --color-user-bubble: rgba(79, 209, 255, 0.14);
-      --color-user-bubble-text: #e6f1ff;
-      --color-on-accent: #070b11;
+      --color-user-bubble: rgba(74, 222, 128, 0.14);
+      --color-user-bubble-text: #ecfdf5;
+      --color-on-accent: #052e16;
       --color-disabled-bg: #121a24;
 
       --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-      --shadow-md: 0 4px 14px -2px rgb(0 0 0 / 0.5), 0 0 0 1px rgba(79, 209, 255, 0.04);
-      --shadow-lg: 0 18px 40px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgba(79, 209, 255, 0.06);
+      --shadow-md: 0 4px 14px -2px rgb(0 0 0 / 0.5), 0 0 0 1px rgba(74, 222, 128, 0.04);
+      --shadow-lg: 0 18px 40px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgba(74, 222, 128, 0.06);
 
       color-scheme: dark;
     }
@@ -753,4 +753,70 @@
   color: var(--color-on-accent, #ffffff);
   background: var(--color-accent);
   text-decoration: none;
+}
+
+/* James personal assistant identity */
+@keyframes james-orb-breathe {
+  0%, 100% { transform: scale(1); opacity: .72; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+@keyframes james-orb-turn {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes james-synapse-flow {
+  to { stroke-dashoffset: -24; }
+}
+
+.james-orb {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #dcfce7 0 5%, #4ade80 12%, #15803d 38%, #052e16 68%, transparent 70%);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 70%, transparent);
+  box-shadow: 0 0 28px var(--color-accent-glow), inset 0 0 28px rgba(74, 222, 128, .24);
+  animation: james-orb-breathe 2.8s ease-in-out infinite;
+}
+
+.james-orb-core {
+  position: absolute;
+  inset: 25px;
+  border-radius: inherit;
+  border: 1px solid #86efac;
+  box-shadow: 0 0 14px #4ade80;
+}
+
+.james-orb-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+  border: 1px dashed color-mix(in srgb, var(--color-accent) 55%, transparent);
+  animation: james-orb-turn 14s linear infinite;
+}
+
+.james-brain-icon {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: var(--color-accent);
+  background: var(--color-accent-subtle);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 0 18px var(--color-accent-glow);
+}
+
+.james-synapse {
+  animation: james-synapse-flow 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .james-orb,
+  .james-orb-ring,
+  .james-synapse {
+    animation: none;
+  }
 }

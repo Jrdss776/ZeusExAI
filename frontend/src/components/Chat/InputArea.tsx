@@ -134,6 +134,17 @@ export function InputArea() {
     }
   }, [speechError]);
 
+  useEffect(() => {
+    const fillChat = (event: Event) => {
+      const prompt = (event as CustomEvent<string>).detail;
+      if (!prompt) return;
+      setInput(prompt);
+      window.requestAnimationFrame(() => textareaRef.current?.focus());
+    };
+    window.addEventListener('zeusex-fill-chat', fillChat);
+    return () => window.removeEventListener('zeusex-fill-chat', fillChat);
+  }, []);
+
   const handleMicClick = useCallback(async () => {
     if (speechState === 'recording') {
       try {
@@ -593,7 +604,7 @@ export function InputArea() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={selectedModel ? 'Message OpenJarvis...' : 'Pick a model first (⌘K)...'}
+          placeholder={selectedModel ? 'Fale com James...' : 'Escolha um modelo primeiro (Ctrl+K)...'}
           rows={1}
           className="flex-1 bg-transparent outline-none resize-none text-sm leading-relaxed"
           style={{ color: 'var(--color-text)', maxHeight: '200px' }}

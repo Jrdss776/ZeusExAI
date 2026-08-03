@@ -9,10 +9,29 @@ import { listConnectors } from '../../lib/connectors-api';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'Bom dia, senhor';
+  if (hour < 18) return 'Boa tarde, senhor';
+  return 'Boa noite, senhor';
 }
+
+const COMMERCIAL_CHAT_STARTERS = [
+  {
+    label: 'Analisar produto',
+    prompt: 'Faça uma Análise 360 deste produto. Vou enviar o link ou os dados a seguir: ',
+  },
+  {
+    label: 'Criar anúncio',
+    prompt: 'Crie um anúncio otimizado para Shopee e Mercado Livre deste produto: ',
+  },
+  {
+    label: 'Estratégia de vendas',
+    prompt: 'Monte uma estratégia de vendas completa para este produto: ',
+  },
+  {
+    label: 'Roteiro de vídeo',
+    prompt: 'Crie um roteiro de venda para este produto, usando apenas os dados fornecidos: ',
+  },
+] as const;
 
 export function ChatArea() {
   const messages = useAppStore((s) => s.messages);
@@ -109,8 +128,36 @@ export function ChatArea() {
               {getGreeting()}
             </h2>
             <p className="text-sm text-center max-w-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
-              Ask anything. Your AI runs locally — private, fast, and always available.
+              Converse comigo sobre sua vida, seus projetos ou vendas. Análises, anúncios e estratégias agora começam diretamente no chat.
             </p>
+
+            <div className="mb-6 flex max-w-2xl flex-wrap justify-center gap-2">
+              {COMMERCIAL_CHAT_STARTERS.map((starter) => (
+                <button
+                  key={starter.label}
+                  type="button"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent('zeusex-fill-chat', { detail: starter.prompt }),
+                    )
+                  }
+                  className="rounded-full px-3 py-2 text-xs transition-colors cursor-pointer"
+                  style={{
+                    background: 'var(--color-accent-subtle)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.borderColor = 'var(--color-accent)';
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.borderColor = 'var(--color-border)';
+                  }}
+                >
+                  {starter.label}
+                </button>
+              ))}
+            </div>
 
             {/* Quick action hints */}
             <div className="flex gap-3">

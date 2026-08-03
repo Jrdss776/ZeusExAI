@@ -2,9 +2,12 @@ name: Desktop Build & Release
 
 on:
   push:
+    branches: [main]
     tags:
       - 'v*'
       - 'desktop-v*'
+    paths:
+      - '.github/workflows/desktop.yml'
   pull_request:
     branches: [main]
     paths:
@@ -73,6 +76,60 @@ jobs:
       - name: Cargo test
         working-directory: frontend/src-tauri
         run: cargo test
+
+
+  # Produces directly downloadable Windows installers after this workflow is
+  # changed on main. It deliberately skips updater signing and release
+  # publication, so it can be used before all cross-platform signing
+  # credentials are configured.
+  windows-installer-artifact:
+    needs: [validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: 'frontend/src-tauri -> target'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Download Ollama sidecar
+        shell: bash
+        run: |
+          cd frontend/src-tauri/scripts
+          ./download-ollama.sh
+
+      - name: Build Windows installers
+        working-directory: frontend
+        env:
+          TAURI_CONFIG: '{"bundle":{"createUpdaterArtifacts":false,"externalBin":["binaries/ollama"]}}'
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npx tauri build --bundles nsis,msi
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZeusExAI-Windows-James
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            frontend/src-tauri/target/release/bundle/nsis/*.exe
+            frontend/src-tauri/target/release/bundle/msi/*.msi
 
   # Remove stale artifacts from the desktop-edge rolling pre-release so that
   # only the current build's files are available for download. (The stable

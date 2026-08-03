@@ -104,6 +104,14 @@ export function Sidebar() {
             >
               <PanelLeftClose size={18} />
             </button>
+            <div className="min-w-0 flex-1 px-2">
+              <p className="truncate text-xs font-semibold tracking-[0.24em]" style={{ color: 'var(--color-accent)' }}>
+                JAMES
+              </p>
+              <p className="truncate text-[9px] tracking-[0.12em]" style={{ color: 'var(--color-text-tertiary)' }}>
+                ZEUSEXAI CORE
+              </p>
+            </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => updateSettings({ theme: nextTheme })}

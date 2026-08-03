@@ -5,6 +5,7 @@ import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
 import { fetchSavings, getBase } from '../../lib/api';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
+import { buildJamesSystemPrompt } from '../../lib/jamesPrompt';
 import { MicButton } from './MicButton';
 import { useSpeech } from '../../hooks/useSpeech';
 import { BRAIN_AREAS, loadBrainNotes } from '../SecondBrain/SecondBrain';
@@ -205,15 +206,7 @@ export function InputArea() {
     const brainContext = loadBrainNotes()
       .map((note) => `- ${BRAIN_AREAS[note.area].label} / ${note.title}: ${note.body}`)
       .join('\n');
-    const jamesSystem = [
-      'Você é James, o assistente pessoal e profissional de Jair.',
-      'Fale sempre em português do Brasil e chame Jair de senhor.',
-      'Sua personalidade é formal britânica: elegante, leal, discreta e objetiva.',
-      'Ajude tanto em assuntos pessoais quanto profissionais, incluindo emprego, programação, inteligência artificial, Shopee e Mercado Livre.',
-      'Não invente vendas, avaliações, preços, métricas ou fatos ausentes.',
-      'Use o Second Brain abaixo para personalizar a resposta quando for relevante:',
-      brainContext,
-    ].join('\n');
+    const jamesSystem = buildJamesSystemPrompt(brainContext);
     const apiMessages = [
       { role: 'system', content: jamesSystem },
       ...currentMessages.map((m) => ({

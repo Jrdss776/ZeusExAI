@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { MessageBubble } from './MessageBubble';
 import { InputArea } from './InputArea';
 import { StreamingDots } from './StreamingDots';
+import { JamesVoiceControl } from './JamesVoiceControl';
 import { useAppStore } from '../../lib/store';
 import { Brain, PanelRightOpen, PanelRightClose, Database, MessageSquare, X } from 'lucide-react';
 import { listConnectors } from '../../lib/connectors-api';
@@ -41,6 +42,7 @@ export function ChatArea() {
   const navigate = useNavigate();
   const listRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
+  const lastSpokenRef = useRef(messages.at(-1)?.id ?? '');
 
   // Check if any data sources are connected
   const [hasConnectedSources, setHasConnectedSources] = useState<boolean | null>(null);
@@ -58,6 +60,14 @@ export function ChatArea() {
     }
   }, [messages, streamState.content]);
 
+  useEffect(() => {
+    if (streamState.isStreaming) return;
+    const last = messages.at(-1);
+    if (!last || last.role !== 'assistant' || !last.content || last.id === lastSpokenRef.current) return;
+    lastSpokenRef.current = last.id;
+    window.dispatchEvent(new CustomEvent('zeusex-speak', { detail: last.content }));
+  }, [messages, streamState.isStreaming]);
+
   const handleScroll = () => {
     if (!listRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = listRef.current;
@@ -72,6 +82,7 @@ export function ChatArea() {
     <div className="flex flex-col h-full">
       {/* Toggle bar */}
       <div className="flex items-center justify-end gap-1 px-3 py-1.5 shrink-0">
+        <JamesVoiceControl paused={streamState.isStreaming} />
         <button
           type="button"
           onClick={() => window.dispatchEvent(new CustomEvent('zeusex-toggle-brain'))}

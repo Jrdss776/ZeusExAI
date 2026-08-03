@@ -42,7 +42,7 @@ export function ChatArea() {
   const navigate = useNavigate();
   const listRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
-  const lastSpokenRef = useRef(messages.at(-1)?.id ?? '');
+  const lastSpokenRef = useRef(messages[messages.length - 1]?.id ?? '');
 
   // Check if any data sources are connected
   const [hasConnectedSources, setHasConnectedSources] = useState<boolean | null>(null);
@@ -62,7 +62,7 @@ export function ChatArea() {
 
   useEffect(() => {
     if (streamState.isStreaming) return;
-    const last = messages.at(-1);
+    const last = messages[messages.length - 1];
     if (!last || last.role !== 'assistant' || !last.content || last.id === lastSpokenRef.current) return;
     lastSpokenRef.current = last.id;
     window.dispatchEvent(new CustomEvent('zeusex-speak', { detail: last.content }));

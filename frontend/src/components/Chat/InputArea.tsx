@@ -138,7 +138,7 @@ export function InputArea() {
   useEffect(() => {
     const fillChat = (event: Event) => {
       const prompt = (event as CustomEvent<string>).detail;
-      if (!prompt) return;
+      if (typeof prompt !== 'string') return;
       setInput(prompt);
       window.requestAnimationFrame(() => textareaRef.current?.focus());
     };
@@ -177,8 +177,8 @@ export function InputArea() {
     resetStream();
   }, [resetStream]);
 
-  const sendMessage = useCallback(async () => {
-    const content = input.trim();
+  const sendMessage = useCallback(async (override?: string) => {
+    const content = (override ?? input).trim();
     if (!content || streamState.isStreaming) return;
     if (!selectedModel) {
       toast.error('Pick a model first (⌘K)');
@@ -566,6 +566,17 @@ export function InputArea() {
     maxTokens,
   ]);
 
+  useEffect(() => {
+    const handleVoiceCommand = (event: Event) => {
+      const command = (event as CustomEvent<string>).detail;
+      if (typeof command === 'string' && command.trim()) {
+        void sendMessage(command);
+      }
+    };
+    window.addEventListener('zeusex-voice-command', handleVoiceCommand);
+    return () => window.removeEventListener('zeusex-voice-command', handleVoiceCommand);
+  }, [sendMessage]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -644,7 +655,7 @@ export function InputArea() {
               reason={micReason}
             />
             <button
-              onClick={sendMessage}
+              onClick={() => sendMessage()}
               disabled={!input.trim() || modelLoading || !selectedModel}
               title={selectedModel ? 'Send message' : 'Pick a model first (⌘K)'}
               className="p-2 rounded-xl transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default"

@@ -3,7 +3,8 @@ import { Send, Square, Paperclip, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
-import { fetchSavings, getBase } from '../../lib/api';
+import { fetchSavings, getBase, isLocalModel } from '../../lib/api';
+import { beginModelUse, endModelUse } from '../../lib/smartPerformance';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { buildJamesSystemPrompt } from '../../lib/jamesPrompt';
 import { MicButton } from './MicButton';
@@ -94,7 +95,6 @@ export function InputArea() {
   const updateLastAssistant = useAppStore((s) => s.updateLastAssistant);
   const setStreamState = useAppStore((s) => s.setStreamState);
   const resetStream = useAppStore((s) => s.resetStream);
-  const modelLoading = useAppStore((s) => s.modelLoading);
   const deepResearch = useAppStore((s) => s.deepResearch);
   const setDeepResearch = useAppStore((s) => s.setDeepResearch);
   const corpusSync = useResearchCorpusSync(deepResearch);
@@ -262,6 +262,11 @@ export function InputArea() {
     });
 
     try {
+      if (isLocalModel(selectedModel)) {
+        setStreamState({ phase: 'Carregando modelo...' });
+      }
+      await beginModelUse(selectedModel);
+
       if (deepResearch) {
         for await (const ev of streamResearch(
           content,
@@ -481,6 +486,7 @@ export function InputArea() {
       // numbers don't get stuck on the last sample.
       useAppStore.getState().setLiveEnergy(null);
     } finally {
+      endModelUse(selectedModel);
       if (!accumulatedContent) {
         accumulatedContent = 'No response was generated. Please try again.';
       }
@@ -628,7 +634,7 @@ export function InputArea() {
           rows={1}
           className="flex-1 bg-transparent outline-none resize-none text-sm leading-relaxed"
           style={{ color: 'var(--color-text)', maxHeight: '200px' }}
-          disabled={streamState.isStreaming || modelLoading}
+          disabled={streamState.isStreaming}
         />
         {streamState.isStreaming ? (
           <button
@@ -649,7 +655,7 @@ export function InputArea() {
             />
             <button
               onClick={() => sendMessage()}
-              disabled={!input.trim() || modelLoading || !selectedModel}
+              disabled={!input.trim() || !selectedModel}
               title={selectedModel ? 'Send message' : 'Pick a model first (⌘K)'}
               className="p-2 rounded-xl transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default"
               style={{

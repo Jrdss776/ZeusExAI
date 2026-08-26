@@ -345,11 +345,25 @@ export async function deleteModel(modelName: string): Promise<void> {
   }
 }
 
-const _CLOUD_PREFIXES = ['gpt-', 'o1-', 'o3-', 'o4-', 'claude-', 'gemini-', 'openrouter/'];
+const _CLOUD_PREFIXES = [
+  'gpt-',
+  'o1-',
+  'o3-',
+  'o4-',
+  'claude-',
+  'gemini-',
+  'openrouter/',
+  'MiniMax-',
+  'chatgpt-',
+];
+
+export function isLocalModel(modelName: string): boolean {
+  return Boolean(modelName) && !_CLOUD_PREFIXES.some((prefix) => modelName.startsWith(prefix));
+}
 
 export async function preloadModel(modelName: string): Promise<void> {
   // Cloud models don't need Ollama preloading
-  if (_CLOUD_PREFIXES.some(p => modelName.startsWith(p))) {
+  if (!isLocalModel(modelName)) {
     return;
   }
   // Trigger Ollama to load the model into memory (empty prompt, no generation).
@@ -366,6 +380,20 @@ export async function preloadModel(modelName: string): Promise<void> {
     if (e.name === 'TimeoutError') throw new Error('Model load timed out (120s)');
     throw e;
   }
+}
+
+export async function unloadModel(modelName: string): Promise<void> {
+  if (!isLocalModel(modelName)) return;
+
+  // Ollama unloads a model deterministically when keep_alive is zero. This
+  // releases its RAM/VRAM without deleting the Qwen model from disk.
+  const res = await fetch('http://127.0.0.1:11434/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: modelName, prompt: '', keep_alive: 0 }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Model unload failed: ${res.status}`);
 }
 
 export async function fetchSavings(): Promise<SavingsData> {

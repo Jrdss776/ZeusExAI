@@ -16,6 +16,11 @@ import { fetchModels, fetchServerInfo, fetchSavings, submitSavings, isTauri } fr
 import { OptInModal } from './components/OptInModal';
 import { UpdateChecker } from './components/Desktop/UpdateChecker';
 import { track, hashId } from './lib/analytics';
+import {
+  configureSmartPerformance,
+  noteModelActivity,
+  watchSmartPerformanceActivity,
+} from './lib/smartPerformance';
 
 export default function App() {
   const [setupDone, setSetupDone] = useState(!isTauri());
@@ -47,6 +52,23 @@ export default function App() {
   const setOptInModalOpen = useAppStore((s) => s.setOptInModalOpen);
   const markOptInModalSeen = useAppStore((s) => s.markOptInModalSeen);
   const savings = useAppStore((s) => s.savings);
+
+  useEffect(() => {
+    configureSmartPerformance({
+      onLoadingChange: (loading) => useAppStore.getState().setModelLoading(loading),
+      onLog: (level, message) => useAppStore.getState().addLogEntry({
+        timestamp: Date.now(),
+        level,
+        category: 'model',
+        message,
+      }),
+    });
+    return watchSmartPerformanceActivity(() => useAppStore.getState().selectedModel);
+  }, []);
+
+  useEffect(() => {
+    if (selectedModel) noteModelActivity(selectedModel);
+  }, [selectedModel]);
 
   // Apply theme class to <html>
   useEffect(() => {

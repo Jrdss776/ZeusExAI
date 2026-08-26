@@ -361,13 +361,58 @@ export function isLocalModel(modelName: string): boolean {
   return Boolean(modelName) && !_CLOUD_PREFIXES.some((prefix) => modelName.startsWith(prefix));
 }
 
-export async function preloadModel(modelName: string): Promise<void> {
+export const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
+
+function normalizeOllamaUrl(host: string): string {
+  return host.trim().replace(/\/+$/, '').replace(/\/v1$/, '') || DEFAULT_OLLAMA_URL;
+}
+
+export interface OllamaMemorySnapshot {
+  modelBytes: number;
+  modelVramBytes: number;
+  totalBytes: number;
+  totalVramBytes: number;
+}
+
+export async function getOllamaMemorySnapshot(
+  modelName: string,
+  host = DEFAULT_OLLAMA_URL,
+): Promise<OllamaMemorySnapshot> {
+  const res = await fetch(`${normalizeOllamaUrl(host)}/api/ps`, {
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!res.ok) throw new Error(`Ollama memory query failed: ${res.status}`);
+  const data = await res.json();
+  const models = Array.isArray(data?.models) ? data.models : [];
+  const normalizedTarget = modelName.replace(/:latest$/, '');
+  let modelBytes = 0;
+  let modelVramBytes = 0;
+  let totalBytes = 0;
+  let totalVramBytes = 0;
+  for (const model of models) {
+    const size = Number(model?.size ?? 0) || 0;
+    const sizeVram = Number(model?.size_vram ?? 0) || 0;
+    totalBytes += size;
+    totalVramBytes += sizeVram;
+    const name = String(model?.name ?? model?.model ?? '');
+    if (name === modelName || name.replace(/:latest$/, '') === normalizedTarget) {
+      modelBytes += size;
+      modelVramBytes += sizeVram;
+    }
+  }
+  return { modelBytes, modelVramBytes, totalBytes, totalVramBytes };
+}
+
+export async function preloadModel(
+  modelName: string,
+  host = DEFAULT_OLLAMA_URL,
+): Promise<void> {
   // Cloud models don't need Ollama preloading
   if (!isLocalModel(modelName)) {
     return;
   }
   // Trigger Ollama to load the model into memory (empty prompt, no generation).
-  const ollamaUrl = 'http://127.0.0.1:11434';
+  const ollamaUrl = normalizeOllamaUrl(host);
   try {
     const res = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
@@ -382,12 +427,15 @@ export async function preloadModel(modelName: string): Promise<void> {
   }
 }
 
-export async function unloadModel(modelName: string): Promise<void> {
+export async function unloadModel(
+  modelName: string,
+  host = DEFAULT_OLLAMA_URL,
+): Promise<void> {
   if (!isLocalModel(modelName)) return;
 
   // Ollama unloads a model deterministically when keep_alive is zero. This
   // releases its RAM/VRAM without deleting the Qwen model from disk.
-  const res = await fetch('http://127.0.0.1:11434/api/generate', {
+  const res = await fetch(`${normalizeOllamaUrl(host)}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: modelName, prompt: '', keep_alive: 0 }),
@@ -1258,7 +1306,14 @@ export async function getInferenceSource(): Promise<InferenceSource> {
       throw new Error(e?.message ?? e ?? 'Failed to read inference source');
     }
   }
-  return { kind: 'ollama' };
+  // In the web UI there is no inference.json bridge, so ask the server. Only
+  // an explicit Ollama engine is safe to manage through Ollama's native API;
+  // custom and multi-engine servers must own their own lifecycle.
+  const info = await fetchServerInfo();
+  const engine = info.engine.trim().toLowerCase();
+  return engine === 'ollama'
+    ? { kind: 'ollama', model: info.model, engine }
+    : { kind: 'custom', model: info.model, engine };
 }
 
 export async function setInferenceSource(

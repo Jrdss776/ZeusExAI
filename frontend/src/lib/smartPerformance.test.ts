@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SmartPerformanceManager } from './smartPerformance';
 
+const NO_MEMORY = {
+  modelBytes: 0,
+  modelVramBytes: 0,
+  totalBytes: 0,
+  totalVramBytes: 0,
+};
+const noMemory = async () => NO_MEMORY;
+
 describe('SmartPerformanceManager', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -13,13 +21,13 @@ describe('SmartPerformanceManager', () => {
   it('unloads a local model after inactivity and reloads it on return', async () => {
     const load = vi.fn(async () => {});
     const unload = vi.fn(async () => {});
-    const manager = new SmartPerformanceManager({ load, unload, idleMs: 1_000 });
+    const manager = new SmartPerformanceManager({ load, unload, measure: noMemory, idleMs: 1_000 });
 
     await manager.warm('qwen3.5:9b');
     expect(load).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(unload).toHaveBeenCalledWith('qwen3.5:9b');
+    expect(unload).toHaveBeenCalledWith('qwen3.5:9b', 'http://127.0.0.1:11434');
 
     manager.activity('qwen3.5:9b');
     await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(2));
@@ -31,6 +39,7 @@ describe('SmartPerformanceManager', () => {
     const manager = new SmartPerformanceManager({
       load: async () => {},
       unload,
+      measure: noMemory,
       idleMs: 1_000,
     });
 
@@ -53,12 +62,13 @@ describe('SmartPerformanceManager', () => {
     const manager = new SmartPerformanceManager({
       load,
       unload: async () => {},
+      measure: noMemory,
       onLoadingChange: (loading) => loadingChanges.push(loading),
     });
 
     const first = manager.warm('qwen3.5:9b');
     const second = manager.warm('qwen3.5:9b');
-    expect(load).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     finishLoad?.();
     await Promise.all([first, second]);
@@ -69,7 +79,7 @@ describe('SmartPerformanceManager', () => {
   it('never manages cloud models through Ollama', async () => {
     const load = vi.fn(async () => {});
     const unload = vi.fn(async () => {});
-    const manager = new SmartPerformanceManager({ load, unload, idleMs: 1 });
+    const manager = new SmartPerformanceManager({ load, unload, measure: noMemory, idleMs: 1 });
 
     await manager.warm('gpt-5');
     await manager.beginUse('claude-sonnet');
@@ -79,5 +89,68 @@ describe('SmartPerformanceManager', () => {
 
     expect(load).not.toHaveBeenCalled();
     expect(unload).not.toHaveBeenCalled();
+  });
+
+  it('never touches Ollama when a custom inference source is active', async () => {
+    const load = vi.fn(async () => {});
+    const unload = vi.fn(async () => {});
+    const manager = new SmartPerformanceManager({
+      load,
+      unload,
+      measure: noMemory,
+      enabled: false,
+    });
+
+    await manager.warm('qwen2.5-7b-instruct');
+    await manager.beginUse('qwen2.5-7b-instruct');
+    manager.activity('qwen2.5-7b-instruct');
+    await vi.runAllTimersAsync();
+
+    expect(load).not.toHaveBeenCalled();
+    expect(unload).not.toHaveBeenCalled();
+  });
+
+  it('loads the replacement before immediately unloading the previous model', async () => {
+    const operations: string[] = [];
+    const manager = new SmartPerformanceManager({
+      load: async (model) => { operations.push(`load:${model}`); },
+      unload: async (model) => { operations.push(`unload:${model}`); },
+      measure: noMemory,
+    });
+
+    await manager.activate('qwen3.5:9b');
+    await manager.activate('qwen3.5:4b');
+
+    expect(operations).toEqual([
+      'load:qwen3.5:9b',
+      'load:qwen3.5:4b',
+      'unload:qwen3.5:9b',
+    ]);
+    manager.stop();
+  });
+
+  it('logs measured memory loaded and released when Ollama exposes /api/ps', async () => {
+    const gb = 1024 ** 3;
+    const measure = vi.fn()
+      .mockResolvedValueOnce({ ...NO_MEMORY, modelBytes: 7 * gb, modelVramBytes: 6 * gb })
+      .mockResolvedValueOnce(NO_MEMORY);
+    const logs: string[] = [];
+    const manager = new SmartPerformanceManager({
+      load: async () => {},
+      unload: async () => {},
+      measure,
+      idleMs: 1_000,
+      onLog: (_level, message) => logs.push(message),
+    });
+
+    await manager.warm('qwen3.5:9b');
+    await vi.waitFor(() => {
+      expect(logs.some((message) => message.includes('memória 7.00 GB, VRAM 6.00 GB'))).toBe(true);
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.waitFor(() => {
+      expect(logs.some((message) => message.includes('liberados 7.00 GB, VRAM 6.00 GB'))).toBe(true);
+    });
+    manager.stop();
   });
 });

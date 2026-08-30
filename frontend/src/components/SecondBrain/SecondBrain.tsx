@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Brain, Plus, Save, Trash2, X } from 'lucide-react';
 import { storeMemory } from '../../lib/api';
+import type { MemoryCandidate } from '../../lib/jamesIntelligence';
 
 export type BrainArea =
   | 'meta'
@@ -58,9 +59,36 @@ export function loadBrainNotes(): BrainNote[] {
   }
 }
 
-function persist(notes: BrainNote[]) {
+export function persistBrainNotes(notes: BrainNote[]) {
   localStorage.setItem(SECOND_BRAIN_KEY, JSON.stringify(notes));
   window.dispatchEvent(new CustomEvent('zeusex-brain-updated'));
+}
+
+export async function approveBrainMemoryCandidate(candidate: MemoryCandidate): Promise<boolean> {
+  const notes = loadBrainNotes();
+  const normalized = candidate.body.trim().toLocaleLowerCase('pt-BR');
+  if (notes.some((note) => note.body.trim().toLocaleLowerCase('pt-BR') === normalized)) {
+    return false;
+  }
+  const note: BrainNote = {
+    id: candidate.id,
+    area: candidate.area,
+    title: candidate.title,
+    body: candidate.body,
+  };
+  persistBrainNotes([...notes, note]);
+  try {
+    await storeMemory(candidate.body, {
+      source: 'james_approved_memory',
+      area: candidate.area,
+      title: candidate.title,
+      source_message_id: candidate.sourceMessageId,
+      approved_by_user: true,
+    });
+  } catch {
+    // The user-approved local note remains available if indexing is offline.
+  }
+  return true;
 }
 
 type Props = {
@@ -81,7 +109,7 @@ export function SecondBrain({ open, onClose }: Props) {
       ? notes.map((note) => (note.id === editing.id ? editing : note))
       : [...notes, editing];
     setNotes(next);
-    persist(next);
+    persistBrainNotes(next);
     setEditing(null);
     try {
       await storeMemory(editing.body, {
@@ -97,7 +125,7 @@ export function SecondBrain({ open, onClose }: Props) {
   const removeNote = (id: string) => {
     const next = notes.filter((note) => note.id !== id);
     setNotes(next);
-    persist(next);
+    persistBrainNotes(next);
     setEditing(null);
   };
 

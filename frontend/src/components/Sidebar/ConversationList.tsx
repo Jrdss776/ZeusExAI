@@ -1,6 +1,7 @@
 import { Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useAppStore } from '../../lib/store';
+import { rankConversations } from '../../lib/jamesIntelligence';
 
 interface Props {
   searchQuery: string;
@@ -25,11 +26,7 @@ export function ConversationList({ searchQuery }: Props) {
   const selectConversation = useAppStore((s) => s.selectConversation);
   const deleteConversation = useAppStore((s) => s.deleteConversation);
 
-  const filtered = searchQuery
-    ? conversations.filter((c) =>
-        c.title.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : conversations;
+  const filtered = rankConversations(conversations, searchQuery);
 
   if (filtered.length === 0) {
     return (
@@ -41,7 +38,7 @@ export function ConversationList({ searchQuery }: Props) {
 
   return (
     <div className="flex flex-col gap-0.5 py-1">
-      {filtered.map((conv) => {
+      {filtered.map(({ conversation: conv, snippet }) => {
         const isActive = conv.id === activeId;
         return (
           <div
@@ -74,7 +71,7 @@ export function ConversationList({ searchQuery }: Props) {
                 {conv.title}
               </div>
               <div className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
-                {formatRelativeTime(conv.updatedAt)}
+                {snippet || formatRelativeTime(conv.updatedAt)}
               </div>
             </button>
             <button

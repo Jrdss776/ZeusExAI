@@ -7,9 +7,19 @@ import { fetchSavings, getBase, isLocalModel } from '../../lib/api';
 import { beginModelUse, endModelUse } from '../../lib/smartPerformance';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { buildJamesSystemPrompt } from '../../lib/jamesPrompt';
+import {
+  compactJamesConversation,
+  formatJamesSkills,
+  proposeJamesMemory,
+  selectJamesSkills,
+} from '../../lib/jamesIntelligence';
 import { MicButton } from './MicButton';
 import { useSpeech } from '../../hooks/useSpeech';
-import { BRAIN_AREAS, loadBrainNotes } from '../SecondBrain/SecondBrain';
+import {
+  approveBrainMemoryCandidate,
+  BRAIN_AREAS,
+  loadBrainNotes,
+} from '../SecondBrain/SecondBrain';
 import type {
   ChatMessage,
   MessageTelemetry,
@@ -201,18 +211,40 @@ export function InputArea() {
     };
     addMessage(convId, userMsg);
 
+    const memoryCandidate = proposeJamesMemory(content, userMsg.id);
+    if (memoryCandidate) {
+      toast('James identificou uma possível memória', {
+        description: memoryCandidate.body,
+        duration: 12_000,
+        action: {
+          label: 'Salvar',
+          onClick: () => {
+            void approveBrainMemoryCandidate(memoryCandidate)
+              .then((stored) => {
+                if (stored) toast.success('Memória aprovada e salva.');
+                else toast.info('Essa memória já estava salva.');
+              })
+              .catch(() => toast.error('Não foi possível salvar a memória.'));
+          },
+        },
+        cancel: { label: 'Ignorar', onClick: () => undefined },
+      });
+    }
+
     // Build API messages before adding assistant placeholder
     const currentMessages = useAppStore.getState().messages;
     const brainContext = loadBrainNotes()
       .map((note) => `- ${BRAIN_AREAS[note.area].label} / ${note.title}: ${note.body}`)
       .join('\n');
-    const jamesSystem = buildJamesSystemPrompt(brainContext);
+    const skills = selectJamesSkills(content);
+    const compacted = compactJamesConversation(currentMessages);
+    const jamesSystem = buildJamesSystemPrompt(brainContext, {
+      skillsContext: formatJamesSkills(skills),
+      conversationSummary: compacted.summary,
+    });
     const apiMessages = [
       { role: 'system', content: jamesSystem },
-      ...currentMessages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
+      ...compacted.messages,
     ];
 
     const assistantMsg: ChatMessage = {

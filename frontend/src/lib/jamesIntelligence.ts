@@ -215,7 +215,7 @@ export function selectJamesBrainNotes<T extends { title: string; body: string }>
   let chars = 0;
   for (const item of ranked) {
     const size = item.note.title.length + item.note.body.length;
-    if (selected.length >= maxNotes || (selected.length > 0 && chars + size > maxChars)) continue;
+    if (selected.length >= maxNotes || chars + size > maxChars) continue;
     selected.push(item);
     chars += size;
   }

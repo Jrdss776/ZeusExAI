@@ -100,7 +100,11 @@ export function InputArea() {
   const messages = useAppStore((s) => s.messages);
   const speechEnabled = useAppStore((s) => s.settings.speechEnabled);
   const maxTokens = useAppStore((s) => s.settings.maxTokens);
+  const smartPerformanceIdleMinutes = useAppStore((s) => s.settings.smartPerformanceIdleMinutes);
   const temperature = useAppStore((s) => s.settings.temperature);
+  const keepAliveMinutes = Number.isFinite(smartPerformanceIdleMinutes)
+    ? Math.max(1, Math.min(120, Math.ceil(smartPerformanceIdleMinutes))) + 1
+    : 21;
   const createConversation = useAppStore((s) => s.createConversation);
   const addMessage = useAppStore((s) => s.addMessage);
   const updateLastAssistant = useAppStore((s) => s.updateLastAssistant);
@@ -435,7 +439,16 @@ export function InputArea() {
         }
       } else {
       for await (const sseEvent of streamChat(
-        { model: selectedModel, messages: apiMessages, stream: true, temperature, max_tokens: maxTokens },
+        {
+          model: selectedModel,
+          messages: apiMessages,
+          stream: true,
+          temperature,
+          max_tokens: maxTokens,
+          ...(isLocalModel(selectedModel) ? {
+            keep_alive: `${keepAliveMinutes}m`,
+          } : {}),
+        },
         controller.signal,
       )) {
         const eventName = sseEvent.event;
@@ -606,6 +619,7 @@ export function InputArea() {
     deepResearch,
     temperature,
     maxTokens,
+    keepAliveMinutes,
   ]);
 
   useEffect(() => {

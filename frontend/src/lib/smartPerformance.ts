@@ -94,15 +94,22 @@ export class SmartPerformanceManager {
     }
   }
 
-  async warm(model: string): Promise<void> {
+  async warm(model: string, verifyReady = false): Promise<void> {
     if (!this.manages(model)) return;
 
     const unloading = this.unloads.get(model);
     if (unloading) await unloading;
 
     if (this.readyModels.has(model)) {
-      this.scheduleIdleUnload(model);
-      return;
+      const snapshot = verifyReady ? await this.readMemory(model) : null;
+      if (!verifyReady || !snapshot || snapshot.modelBytes > 0) {
+        this.scheduleIdleUnload(model);
+        return;
+      }
+      this.readyModels.delete(model);
+      this.memoryByModel.delete(model);
+      this.bumpEpoch(model);
+      this.onLog('info', `${model} não está mais na memória; recarregando...`);
     }
 
     const existing = this.loads.get(model);
@@ -135,11 +142,11 @@ export class SmartPerformanceManager {
     }
   }
 
-  async activate(model: string): Promise<void> {
+  async activate(model: string, verifyReady = false): Promise<void> {
     if (!this.manages(model)) return;
     const transition = async () => {
       const previous = this.activeModel;
-      await this.warm(model);
+      await this.warm(model, verifyReady);
       this.activeModel = model;
       if (previous && previous !== model && (this.activeUses.get(previous) ?? 0) === 0) {
         await this.unloadReadyModel(previous, 'troca de modelo');
@@ -159,7 +166,7 @@ export class SmartPerformanceManager {
     if (!this.manages(model)) return;
     this.activeUses.set(model, (this.activeUses.get(model) ?? 0) + 1);
     this.clearIdleTimer(model);
-    await this.activate(model);
+    await this.activate(model, true);
   }
 
   endUse(model: string): void {

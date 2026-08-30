@@ -28,6 +28,8 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int = 1024
     stream: bool = False
     tools: Optional[List[Dict[str, Any]]] = None
+    # Ollama extension. Kept optional so the endpoint remains OpenAI-compatible.
+    keep_alive: Optional[str | int] = None
 
 
 # ---------------------------------------------------------------------------

@@ -174,4 +174,29 @@ describe('SmartPerformanceManager', () => {
     expect(unload).toHaveBeenCalledTimes(1);
     manager.stop();
   });
+
+  it('reloads when the frontend cache says ready but Ollama no longer has the model', async () => {
+    const gb = 1024 ** 3;
+    const load = vi.fn(async () => {});
+    const measure = vi.fn()
+      .mockResolvedValueOnce({ ...NO_MEMORY, modelBytes: 4 * gb })
+      .mockResolvedValueOnce(NO_MEMORY)
+      .mockResolvedValueOnce({ ...NO_MEMORY, modelBytes: 4 * gb });
+    const logs: string[] = [];
+    const manager = new SmartPerformanceManager({
+      load,
+      unload: async () => {},
+      measure,
+      onLog: (_level, message) => logs.push(message),
+    });
+
+    await manager.warm('qwen3.5:4b');
+    await vi.waitFor(() => expect(measure).toHaveBeenCalledTimes(1));
+    await manager.beginUse('qwen3.5:4b');
+
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(logs.some((message) => message.includes('não está mais na memória'))).toBe(true);
+    manager.endUse('qwen3.5:4b');
+    manager.stop();
+  });
 });

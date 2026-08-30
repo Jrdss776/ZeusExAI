@@ -86,6 +86,16 @@ describe('James intelligence helpers', () => {
     expect(selected.reduce((total, note) => total + note.title.length + note.body.length, 0)).toBeLessThanOrEqual(500);
   });
 
+  it('never admits a single oversized Second Brain note past the character budget', () => {
+    const selected = selectJamesBrainNotes(
+      [{ title: 'Projeto ZeusExAI', body: 'x'.repeat(2_000) }],
+      'ZeusExAI',
+      { maxChars: 500 },
+    );
+
+    expect(selected).toEqual([]);
+  });
+
   it('searches message content as well as conversation titles', () => {
     const conversations: Conversation[] = [
       {

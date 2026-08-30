@@ -292,6 +292,7 @@ async def stream_local(
     messages: Sequence[Message],
     temperature: float = 0.7,
     max_tokens: int = 1024,
+    keep_alive: str | int | None = None,
 ) -> AsyncIterator[str]:
     """Stream tokens directly from Ollama, bypassing the engine system."""
     payload = {
@@ -306,6 +307,8 @@ async def stream_local(
             "num_predict": max_tokens,
         },
     }
+    if keep_alive is not None:
+        payload["keep_alive"] = keep_alive
     host = _ollama_host()
     async with httpx.AsyncClient(timeout=300) as client:
         async with client.stream("POST", f"{host}/api/chat", json=payload) as resp:

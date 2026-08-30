@@ -350,6 +350,8 @@ def _handle_direct(
     kwargs: dict[str, Any] = {}
     if req.tools:
         kwargs["tools"] = req.tools
+    if req.keep_alive is not None:
+        kwargs["keep_alive"] = req.keep_alive
     if bus:
         from openjarvis.telemetry.instrumented_engine import InstrumentedEngine
         from openjarvis.telemetry.wrapper import instrumented_generate
@@ -571,6 +573,7 @@ async def _handle_stream_tools(
                 temperature=req.temperature,
                 max_tokens=req.max_tokens,
                 tools=req.tools,
+                keep_alive=req.keep_alive,
             ):
                 if sc.content:
                     full_content += sc.content
@@ -734,7 +737,7 @@ async def _handle_stream(
                     pass
                 if _use_local_fallback:
                     token_iter = stream_local(
-                        model, messages, req.temperature, req.max_tokens
+                        model, messages, req.temperature, req.max_tokens, req.keep_alive
                     )
                 else:
                     token_iter = engine.stream(
@@ -742,6 +745,7 @@ async def _handle_stream(
                         model=model,
                         temperature=req.temperature,
                         max_tokens=req.max_tokens,
+                        keep_alive=req.keep_alive,
                     )
             async for token in token_iter:
                 full_content += token

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ChatMessage, Conversation } from '../types';
 import {
   compactJamesConversation,
+  formatJamesSkills,
   proposeJamesMemory,
   rankConversations,
   selectJamesSkills,
@@ -20,6 +21,20 @@ describe('James intelligence helpers', () => {
     expect(ids).toContain('marketplace');
     expect(ids).toContain('technical-diagnosis');
     expect(ids).not.toContain('memory-recall');
+  });
+
+  it('loads Excel knowledge only for spreadsheet requests', () => {
+    const excelContext = formatJamesSkills(
+      selectJamesSkills('Preciso corrigir um PROCV na minha planilha do Excel'),
+    );
+    const unrelatedContext = formatJamesSkills(
+      selectJamesSkills('Ajude a planejar uma entrevista de emprego'),
+    );
+
+    expect(excelContext).toContain('HABILIDADE ATIVA — Excel e planilhas');
+    expect(excelContext).toContain('Excel — referência operacional');
+    expect(excelContext).toContain('Detecte idioma e localidade');
+    expect(unrelatedContext).not.toContain('Excel — referência operacional');
   });
 
   it('compacts old turns while keeping the recent conversation intact', () => {

@@ -1,4 +1,5 @@
 import type { ChatMessage, Conversation } from '../types';
+import excelKnowledge from '../james-brain/KNOWLEDGE/EXCEL.md?raw';
 
 export type JamesSkill = {
   id: string;
@@ -6,6 +7,7 @@ export type JamesSkill = {
   description: string;
   triggers: string[];
   instructions: string[];
+  knowledge?: string;
   requiresConfirmation?: boolean;
 };
 
@@ -75,6 +77,22 @@ export const JAMES_SKILLS: JamesSkill[] = [
     ],
   },
   {
+    id: 'excel-analysis',
+    name: 'Excel e planilhas',
+    description: 'Analisa e altera planilhas preservando fórmulas, estrutura, formatos e dados.',
+    triggers: [
+      'excel', 'xlsx', 'xlsm', 'csv', 'planilha', 'procv', 'procx', 'xlookup',
+      'tabela dinamica', 'power query', 'vba', 'macro',
+    ],
+    instructions: [
+      'Inspecione a estrutura e os dados disponíveis antes de sugerir fórmulas ou alterações.',
+      'Preserve fórmulas, formatos, validações e macros existentes; não sobrescreva o original sem confirmação.',
+      'Informe a fórmula ou transformação proposta e como validar o resultado.',
+      'Não invente valores, nomes de abas, colunas ou intervalos que não foram fornecidos.',
+    ],
+    knowledge: excelKnowledge,
+  },
+  {
     id: 'marketplace',
     name: 'Marketplace e vendas',
     description: 'Analisa Shopee, Mercado Livre, preço, custo e margem sem inventar números.',
@@ -121,6 +139,11 @@ export function formatJamesSkills(skills: JamesSkill[]): string {
     .map((skill) => [
       `HABILIDADE ATIVA — ${skill.name}:`,
       ...skill.instructions.map((instruction) => `- ${instruction}`),
+      ...(skill.knowledge ? [
+        '',
+        'CONHECIMENTO ESPECIALIZADO CARREGADO SOB DEMANDA:',
+        skill.knowledge.trim(),
+      ] : []),
     ].join('\n'))
     .join('\n\n');
 }

@@ -1,5 +1,11 @@
 # Changelog do cérebro do James
 
+## 2026-08-29 — Excel
+
+- Adicionada referência operacional de Excel em `KNOWLEDGE/EXCEL.md`.
+- Criada habilidade de Excel e planilhas com carregamento sob demanda.
+- Mantido o conhecimento fora de conversas não relacionadas para economizar contexto.
+
 ## 2026-08-29
 
 - Criada a organização Markdown do cérebro do James.

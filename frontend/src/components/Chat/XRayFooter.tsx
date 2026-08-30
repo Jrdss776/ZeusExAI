@@ -74,6 +74,7 @@ export function XRayFooter({ usage, telemetry, isResearch = false }: Props) {
   }
   if (telemetry?.ttft_ms != null || telemetry?.total_ms != null) {
     const latencyParts: string[] = [];
+    if (telemetry.model_ready_ms != null) latencyParts.push(`Model ready ${formatMs(telemetry.model_ready_ms)}`);
     if (telemetry.ttft_ms != null) latencyParts.push(`TTFT ${formatMs(telemetry.ttft_ms)}`);
     if (telemetry.total_ms != null) latencyParts.push(`Total ${formatMs(telemetry.total_ms)}`);
     rows.push({ label: 'Latency', value: latencyParts.join(' \u00B7 ') });

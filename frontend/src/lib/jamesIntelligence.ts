@@ -157,9 +157,9 @@ export function compactJamesConversation(
   input: ChatMessage[],
   options: { maxMessages?: number; maxChars?: number; maxSummaryChars?: number } = {},
 ): CompactConversation {
-  const maxMessages = Math.max(4, options.maxMessages ?? 18);
-  const maxChars = Math.max(2_000, options.maxChars ?? 14_000);
-  const maxSummaryChars = Math.max(500, options.maxSummaryChars ?? 3_000);
+  const maxMessages = Math.max(4, options.maxMessages ?? 12);
+  const maxChars = Math.max(2_000, options.maxChars ?? 8_000);
+  const maxSummaryChars = Math.max(500, options.maxSummaryChars ?? 1_500);
   const totalChars = input.reduce((total, message) => total + message.content.length, 0);
 
   if (input.length <= maxMessages && totalChars <= maxChars) {
@@ -195,6 +195,31 @@ export function compactJamesConversation(
     summary: clip(`${prefix}${summaryLines.join('\n')}`, maxSummaryChars),
     compacted: true,
   };
+}
+
+export function selectJamesBrainNotes<T extends { title: string; body: string }>(
+  notes: T[],
+  query: string,
+  options: { maxNotes?: number; maxChars?: number } = {},
+): T[] {
+  const maxNotes = Math.max(1, options.maxNotes ?? 12);
+  const maxChars = Math.max(500, options.maxChars ?? 4_000);
+  const terms = normalizeJamesText(query).split(' ').filter((term) => term.length >= 3);
+  const ranked = notes.map((note, index) => {
+    const text = normalizeJamesText(`${note.title} ${note.body}`);
+    const score = terms.reduce((total, term) => total + (text.includes(term) ? 1 : 0), 0);
+    return { note, index, score };
+  }).sort((a, b) => b.score - a.score || b.index - a.index);
+
+  const selected: Array<{ note: T; index: number }> = [];
+  let chars = 0;
+  for (const item of ranked) {
+    const size = item.note.title.length + item.note.body.length;
+    if (selected.length >= maxNotes || (selected.length > 0 && chars + size > maxChars)) continue;
+    selected.push(item);
+    chars += size;
+  }
+  return selected.sort((a, b) => a.index - b.index).map(({ note }) => note);
 }
 
 export function rankConversations(conversations: Conversation[], query: string): Array<{

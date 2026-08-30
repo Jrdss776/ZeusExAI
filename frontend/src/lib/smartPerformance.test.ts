@@ -153,4 +153,25 @@ describe('SmartPerformanceManager', () => {
     });
     manager.stop();
   });
+
+  it('updates the idle timeout and keeps Ollama alive slightly longer', async () => {
+    const load = vi.fn(async () => {});
+    const unload = vi.fn(async () => {});
+    const manager = new SmartPerformanceManager({
+      load,
+      unload,
+      measure: noMemory,
+      idleMs: 5 * 60_000,
+    });
+
+    manager.configure({ enabled: true, idleMs: 20 * 60_000 });
+    await manager.warm('qwen3.5:9b');
+
+    expect(load).toHaveBeenCalledWith('qwen3.5:9b', 'http://127.0.0.1:11434', 21);
+    await vi.advanceTimersByTimeAsync(19 * 60_000);
+    expect(unload).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(unload).toHaveBeenCalledTimes(1);
+    manager.stop();
+  });
 });

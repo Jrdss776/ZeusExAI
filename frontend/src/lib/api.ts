@@ -406,6 +406,7 @@ export async function getOllamaMemorySnapshot(
 export async function preloadModel(
   modelName: string,
   host = DEFAULT_OLLAMA_URL,
+  keepAliveMinutes = 21,
 ): Promise<void> {
   // Cloud models don't need Ollama preloading
   if (!isLocalModel(modelName)) {
@@ -413,11 +414,12 @@ export async function preloadModel(
   }
   // Trigger Ollama to load the model into memory (empty prompt, no generation).
   const ollamaUrl = normalizeOllamaUrl(host);
+  const keepAlive = `${Math.max(1, Math.min(121, Math.ceil(keepAliveMinutes)))}m`;
   try {
     const res = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: modelName, prompt: '', keep_alive: '5m' }),
+      body: JSON.stringify({ model: modelName, prompt: '', keep_alive: keepAlive }),
       signal: AbortSignal.timeout(120_000),
     });
     if (!res.ok) throw new Error(`Preload failed: ${res.status}`);

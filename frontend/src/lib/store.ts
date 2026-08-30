@@ -79,6 +79,7 @@ interface Settings {
   defaultAgent: string;
   temperature: number;
   maxTokens: number;
+  smartPerformanceIdleMinutes: number;
   speechEnabled: boolean;
 }
 
@@ -91,7 +92,8 @@ function loadSettings(): Settings {
     defaultModel: '',
     defaultAgent: '',
     temperature: 0.7,
-    maxTokens: 4096,
+    maxTokens: 2048,
+    smartPerformanceIdleMinutes: 20,
     speechEnabled: false,
   };
   try {

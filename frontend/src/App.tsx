@@ -71,6 +71,11 @@ export default function App() {
         configureSmartPerformance({
           enabled: source.kind === 'ollama',
           host: source.host,
+          idleMs: (
+            Number.isFinite(settings.smartPerformanceIdleMinutes)
+              ? Math.max(1, settings.smartPerformanceIdleMinutes)
+              : 20
+          ) * 60_000,
           ...callbacks,
         });
         if (source.kind === 'ollama') {
@@ -87,7 +92,7 @@ export default function App() {
       cancelled = true;
       stopWatching();
     };
-  }, []);
+  }, [settings.smartPerformanceIdleMinutes]);
 
   useEffect(() => {
     if (selectedModel) noteModelActivity(selectedModel);

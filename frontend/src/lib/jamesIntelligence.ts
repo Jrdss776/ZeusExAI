@@ -149,11 +149,17 @@ export function compactJamesConversation(
 
   const recent = input.slice(-maxMessages);
   const older = input.slice(0, -maxMessages);
-  const perMessageBudget = Math.max(500, Math.floor(maxChars / Math.max(1, recent.length)));
-  const messages = recent.map(({ role, content }) => ({
-    role,
-    content: clip(content, perMessageBudget),
-  }));
+  const latest = recent[recent.length - 1];
+  const previous = recent.slice(0, -1);
+  const previousBudget = Math.max(0, maxChars - (latest?.content.length ?? 0));
+  const perMessageBudget = Math.max(500, Math.floor(previousBudget / Math.max(1, previous.length)));
+  const messages = [
+    ...previous.map(({ role, content }) => ({
+      role,
+      content: clip(content, perMessageBudget),
+    })),
+    ...(latest ? [{ role: latest.role, content: latest.content }] : []),
+  ];
 
   const summaryLines = older
     .slice(-12)
@@ -176,7 +182,7 @@ export function rankConversations(conversations: Conversation[], query: string):
   if (!normalizedQuery) {
     return conversations.map((conversation) => ({ conversation, snippet: '' }));
   }
-  const terms = normalizedQuery.split(' ').filter((term) => term.length >= 2);
+  const terms = normalizedQuery.split(' ').filter(Boolean);
 
   return conversations
     .map((conversation) => {

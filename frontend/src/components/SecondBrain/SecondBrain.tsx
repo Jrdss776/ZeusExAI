@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Brain, Plus, Save, Trash2, X } from 'lucide-react';
 import { storeMemory } from '../../lib/api';
 import type { MemoryCandidate } from '../../lib/jamesIntelligence';
@@ -100,6 +100,20 @@ export function SecondBrain({ open, onClose }: Props) {
   const [notes, setNotes] = useState<BrainNote[]>(loadBrainNotes);
   const [editing, setEditing] = useState<BrainNote | null>(null);
   const areas = useMemo(() => new Set(notes.map((note) => note.area)).size, [notes]);
+
+  useEffect(() => {
+    const refreshNotes = () => setNotes(loadBrainNotes());
+    const refreshFromStorage = (event: StorageEvent) => {
+      if (event.key === SECOND_BRAIN_KEY) refreshNotes();
+    };
+
+    window.addEventListener('zeusex-brain-updated', refreshNotes);
+    window.addEventListener('storage', refreshFromStorage);
+    return () => {
+      window.removeEventListener('zeusex-brain-updated', refreshNotes);
+      window.removeEventListener('storage', refreshFromStorage);
+    };
+  }, []);
 
   if (!open) return null;
 

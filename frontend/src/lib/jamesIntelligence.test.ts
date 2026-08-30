@@ -34,6 +34,22 @@ describe('James intelligence helpers', () => {
     expect(result.summary).toContain('mensagem 16');
   });
 
+  it('never truncates the latest user message during compaction', () => {
+    const latestContent = `pedido atual ${'z'.repeat(3_000)}`;
+    const messages = [
+      ...Array.from({ length: 20 }, (_, index) =>
+        message(String(index + 1), index % 2 ? 'assistant' : 'user', `histórico ${index + 1} ${'x'.repeat(800)}`),
+      ),
+      message('21', 'user', latestContent),
+    ];
+
+    const result = compactJamesConversation(messages, { maxMessages: 8, maxChars: 4_000 });
+
+    expect(result.compacted).toBe(true);
+    expect(result.messages[result.messages.length - 1]?.role).toBe('user');
+    expect(result.messages[result.messages.length - 1]?.content).toBe(latestContent);
+  });
+
   it('searches message content as well as conversation titles', () => {
     const conversations: Conversation[] = [
       {
@@ -49,6 +65,21 @@ describe('James intelligence helpers', () => {
     const matches = rankConversations(conversations, 'projeto piper');
     expect(matches.map((item) => item.conversation.id)).toEqual(['one']);
     expect(matches[0].snippet).toContain('Piper');
+  });
+
+  it('filters one-character searches instead of returning every conversation', () => {
+    const conversations: Conversation[] = [
+      {
+        id: 'c', title: 'C', createdAt: 2, updatedAt: 2, model: 'qwen',
+        messages: [message('1', 'user', 'Código nativo')],
+      },
+      {
+        id: 'other', title: 'Relatório', createdAt: 1, updatedAt: 1, model: 'qwen',
+        messages: [message('2', 'user', 'Resumo mensal')],
+      },
+    ];
+
+    expect(rankConversations(conversations, 'c').map((item) => item.conversation.id)).toEqual(['c']);
   });
 
   it('creates a review candidate only for durable personal information', () => {

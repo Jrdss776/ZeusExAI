@@ -5,11 +5,11 @@ import {
   pullModel,
   deleteModel,
   fetchModels,
-  preloadModel,
   isTauri,
   getCloudKeyStatus,
   saveCloudKey,
 } from '../lib/api';
+import { warmModel } from '../lib/smartPerformance';
 
 /** Popular models that users can download from the catalogue. */
 const CATALOGUE_MODELS = [
@@ -149,18 +149,11 @@ export function CommandPalette() {
     setCommandPaletteOpen(false);
 
     if (modelId !== previousModel) {
-      const { createConversation, setModelLoading, addLogEntry } = useAppStore.getState();
+      const { createConversation } = useAppStore.getState();
       createConversation(modelId);
-      setModelLoading(true);
-      addLogEntry({ timestamp: Date.now(), level: 'info', category: 'model', message: `Switching to ${modelId}...` });
       try {
-        await preloadModel(modelId);
-        addLogEntry({ timestamp: Date.now(), level: 'info', category: 'model', message: `${modelId} loaded` });
-      } catch (e: any) {
-        addLogEntry({ timestamp: Date.now(), level: 'error', category: 'model', message: `Failed to load ${modelId}: ${e.message}` });
-      } finally {
-        setModelLoading(false);
-      }
+        await warmModel(modelId);
+      } catch {}
     }
   };
 

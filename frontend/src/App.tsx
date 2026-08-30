@@ -12,10 +12,15 @@ import { CommandPalette } from './components/CommandPalette';
 import { SetupScreen } from './components/SetupScreen';
 import { Toaster } from './components/ui/sonner';
 import { useAppStore } from './lib/store';
-import { fetchModels, fetchServerInfo, fetchSavings, submitSavings, isTauri } from './lib/api';
+import { fetchModels, fetchServerInfo, fetchSavings, getInferenceSource, submitSavings, isTauri } from './lib/api';
 import { OptInModal } from './components/OptInModal';
 import { UpdateChecker } from './components/Desktop/UpdateChecker';
 import { track, hashId } from './lib/analytics';
+import {
+  configureSmartPerformance,
+  noteModelActivity,
+  watchSmartPerformanceActivity,
+} from './lib/smartPerformance';
 
 export default function App() {
   const [setupDone, setSetupDone] = useState(!isTauri());
@@ -47,6 +52,46 @@ export default function App() {
   const setOptInModalOpen = useAppStore((s) => s.setOptInModalOpen);
   const markOptInModalSeen = useAppStore((s) => s.markOptInModalSeen);
   const savings = useAppStore((s) => s.savings);
+
+  useEffect(() => {
+    let cancelled = false;
+    const callbacks = {
+      onLoadingChange: (loading: boolean) => useAppStore.getState().setModelLoading(loading),
+      onLog: (level: 'info' | 'error', message: string) => useAppStore.getState().addLogEntry({
+        timestamp: Date.now(),
+        level,
+        category: 'model',
+        message,
+      }),
+    };
+    configureSmartPerformance({ enabled: false, ...callbacks });
+    getInferenceSource()
+      .then((source) => {
+        if (cancelled) return;
+        configureSmartPerformance({
+          enabled: source.kind === 'ollama',
+          host: source.host,
+          ...callbacks,
+        });
+        if (source.kind === 'ollama') {
+          noteModelActivity(useAppStore.getState().selectedModel);
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        configureSmartPerformance({ enabled: false, ...callbacks });
+        callbacks.onLog('error', `Modo Desempenho indisponível: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    const stopWatching = watchSmartPerformanceActivity(() => useAppStore.getState().selectedModel);
+    return () => {
+      cancelled = true;
+      stopWatching();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedModel) noteModelActivity(selectedModel);
+  }, [selectedModel]);
 
   // Apply theme class to <html>
   useEffect(() => {

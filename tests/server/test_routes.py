@@ -758,6 +758,33 @@ class TestIdentityPromptInjection:
         assert len(system_msgs) == 1
         assert system_msgs[0].content == "Be terse."
 
+    def test_stream_forwards_ollama_keep_alive(self):
+        captured_kwargs: dict = {}
+        engine = _make_capturing_engine([])
+
+        async def mock_stream(
+            messages, *, model, temperature=0.7, max_tokens=1024, **kwargs
+        ):
+            captured_kwargs.update(kwargs)
+            yield "ok"
+
+        engine.stream = mock_stream
+        client = TestClient(create_app(engine, "test-model", config=_identity_config()))
+
+        resp = client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "test-model",
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": True,
+                "keep_alive": "21m",
+            },
+        )
+
+        assert resp.status_code == 200
+        _ = resp.text
+        assert captured_kwargs["keep_alive"] == "21m"
+
     def test_direct_injects_identity_when_absent(self):
         captured: list = []
         engine = _make_capturing_engine(captured)

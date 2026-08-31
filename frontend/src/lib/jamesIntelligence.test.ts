@@ -5,6 +5,7 @@ import {
   formatJamesSkills,
   proposeJamesMemory,
   rankConversations,
+  selectJamesBrainNotes,
   selectJamesSkills,
 } from './jamesIntelligence';
 
@@ -63,6 +64,36 @@ describe('James intelligence helpers', () => {
     expect(result.compacted).toBe(true);
     expect(result.messages[result.messages.length - 1]?.role).toBe('user');
     expect(result.messages[result.messages.length - 1]?.content).toBe(latestContent);
+  });
+
+  it('keeps the Second Brain prompt small and prioritizes relevant notes', () => {
+    const notes = [
+      { title: 'Família', body: 'Paula é esposa de Jair.' },
+      { title: 'Projeto', body: 'ZeusExAI usa o modelo Qwen local.' },
+      ...Array.from({ length: 20 }, (_, index) => ({
+        title: `Nota ${index}`,
+        body: `Informação secundária ${index} ${'x'.repeat(100)}`,
+      })),
+    ];
+
+    const selected = selectJamesBrainNotes(notes, 'Como está o projeto ZeusExAI?', {
+      maxNotes: 4,
+      maxChars: 500,
+    });
+
+    expect(selected).toHaveLength(4);
+    expect(selected.some((note) => note.title === 'Projeto')).toBe(true);
+    expect(selected.reduce((total, note) => total + note.title.length + note.body.length, 0)).toBeLessThanOrEqual(500);
+  });
+
+  it('never admits a single oversized Second Brain note past the character budget', () => {
+    const selected = selectJamesBrainNotes(
+      [{ title: 'Projeto ZeusExAI', body: 'x'.repeat(2_000) }],
+      'ZeusExAI',
+      { maxChars: 500 },
+    );
+
+    expect(selected).toEqual([]);
   });
 
   it('searches message content as well as conversation titles', () => {

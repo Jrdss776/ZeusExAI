@@ -148,6 +148,8 @@ class OllamaEngine(AsyncHTTPEngineMixin, InferenceEngine):
                 "num_ctx": kwargs.get("num_ctx", _default_num_ctx()),
             },
         }
+        if kwargs.get("keep_alive") is not None:
+            payload["keep_alive"] = kwargs["keep_alive"]
         # Disable extended thinking by default (Qwen3.5 etc.).
         # When enabled, thinking tokens consume the entire budget and
         # the visible content comes back empty.
@@ -270,6 +272,8 @@ class OllamaEngine(AsyncHTTPEngineMixin, InferenceEngine):
                 "num_ctx": kwargs.get("num_ctx", _default_num_ctx()),
             },
         }
+        if kwargs.get("keep_alive") is not None:
+            payload["keep_alive"] = kwargs["keep_alive"]
         # Mirror generate()'s default: disable extended thinking unless the
         # caller opted in. Qwen3/etc. with thinking on can stall the visible
         # stream for 60+ seconds before any tokens reach the client, which
@@ -369,6 +373,8 @@ class OllamaEngine(AsyncHTTPEngineMixin, InferenceEngine):
                 "num_ctx": kwargs.get("num_ctx", _default_num_ctx()),
             },
         }
+        if kwargs.get("keep_alive") is not None:
+            payload["keep_alive"] = kwargs["keep_alive"]
         if "think" not in kwargs:
             payload["think"] = False
         elif kwargs["think"] is not None:

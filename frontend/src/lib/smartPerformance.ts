@@ -7,11 +7,11 @@ import {
   type OllamaMemorySnapshot,
 } from './api';
 
-export const SMART_PERFORMANCE_IDLE_MS = 5 * 60 * 1000;
+export const SMART_PERFORMANCE_IDLE_MS = 20 * 60 * 1000;
 
 type Timer = ReturnType<typeof setTimeout>;
 type LogLevel = 'info' | 'error';
-type ModelOperation = (model: string, host: string) => Promise<void>;
+type ModelOperation = (model: string, host: string, keepAliveMinutes?: number) => Promise<void>;
 type MemoryProbe = (model: string, host: string) => Promise<OllamaMemorySnapshot>;
 
 interface SmartPerformanceDependencies {
@@ -27,6 +27,7 @@ interface SmartPerformanceDependencies {
 
 interface SmartPerformanceRuntime {
   enabled: boolean;
+  idleMs?: number;
   host?: string;
   onLoadingChange?: (loading: boolean) => void;
   onLog?: (level: LogLevel, message: string) => void;
@@ -41,7 +42,7 @@ export class SmartPerformanceManager {
   private readonly load: ModelOperation;
   private readonly unload: ModelOperation;
   private readonly measure: MemoryProbe;
-  private readonly idleMs: number;
+  private idleMs: number;
   private enabled: boolean;
   private host: string;
   private onLoadingChange: (loading: boolean) => void;
@@ -68,6 +69,12 @@ export class SmartPerformanceManager {
   }
 
   configure(runtime: SmartPerformanceRuntime): void {
+    const requestedIdleMs = runtime.idleMs ?? this.idleMs;
+    const nextIdleMs = Number.isFinite(requestedIdleMs)
+      ? Math.max(60_000, requestedIdleMs)
+      : SMART_PERFORMANCE_IDLE_MS;
+    const idleChanged = nextIdleMs !== this.idleMs;
+    this.idleMs = nextIdleMs;
     this.enabled = runtime.enabled;
     this.host = runtime.host?.trim() || DEFAULT_OLLAMA_URL;
     if (runtime.onLoadingChange) this.onLoadingChange = runtime.onLoadingChange;
@@ -80,18 +87,29 @@ export class SmartPerformanceManager {
       this.lifecycleEpoch.clear();
       this.activeModel = null;
       this.onLoadingChange(false);
+    } else if (idleChanged) {
+      for (const model of this.readyModels) {
+        if ((this.activeUses.get(model) ?? 0) === 0) this.scheduleIdleUnload(model);
+      }
     }
   }
 
-  async warm(model: string): Promise<void> {
+  async warm(model: string, verifyReady = false): Promise<void> {
     if (!this.manages(model)) return;
 
     const unloading = this.unloads.get(model);
     if (unloading) await unloading;
 
     if (this.readyModels.has(model)) {
-      this.scheduleIdleUnload(model);
-      return;
+      const snapshot = verifyReady ? await this.readMemory(model) : null;
+      if (!verifyReady || !snapshot || snapshot.modelBytes > 0) {
+        this.scheduleIdleUnload(model);
+        return;
+      }
+      this.readyModels.delete(model);
+      this.memoryByModel.delete(model);
+      this.bumpEpoch(model);
+      this.onLog('info', `${model} não está mais na memória; recarregando...`);
     }
 
     const existing = this.loads.get(model);
@@ -99,11 +117,12 @@ export class SmartPerformanceManager {
 
     const operation = (async () => {
       this.onLog('info', `Carregando ${model} para uso...`);
+      const startedAt = Date.now();
       try {
-        await this.load(model, this.host);
+        await this.load(model, this.host, Math.ceil(this.idleMs / 60_000) + 1);
         this.readyModels.add(model);
         const epoch = this.bumpEpoch(model);
-        this.onLog('info', `${model} pronto`);
+        this.onLog('info', `${model} pronto em ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
         void this.recordLoadedMemory(model, epoch);
         this.scheduleIdleUnload(model);
       } catch (error) {
@@ -123,11 +142,11 @@ export class SmartPerformanceManager {
     }
   }
 
-  async activate(model: string): Promise<void> {
+  async activate(model: string, verifyReady = false): Promise<void> {
     if (!this.manages(model)) return;
     const transition = async () => {
       const previous = this.activeModel;
-      await this.warm(model);
+      await this.warm(model, verifyReady);
       this.activeModel = model;
       if (previous && previous !== model && (this.activeUses.get(previous) ?? 0) === 0) {
         await this.unloadReadyModel(previous, 'troca de modelo');
@@ -147,7 +166,7 @@ export class SmartPerformanceManager {
     if (!this.manages(model)) return;
     this.activeUses.set(model, (this.activeUses.get(model) ?? 0) + 1);
     this.clearIdleTimer(model);
-    await this.activate(model);
+    await this.activate(model, true);
   }
 
   endUse(model: string): void {

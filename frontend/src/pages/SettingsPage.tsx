@@ -652,6 +652,26 @@ export function SettingsPage() {
 
           {/* Model defaults */}
           <Section title="Model Defaults">
+            <SettingRow
+              label="Keep local model ready"
+              description="Avoids a cold reload after short pauses"
+            >
+              <select
+                value={settings.smartPerformanceIdleMinutes}
+                onChange={(e) => {
+                  updateSettings({ smartPerformanceIdleMinutes: parseInt(e.target.value) });
+                  showSaved();
+                }}
+                className="rounded-md border px-2 py-1 text-sm"
+                style={{ background: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)' }}
+              >
+                <option value={5}>5 minutes</option>
+                <option value={10}>10 minutes</option>
+                <option value={20}>20 minutes</option>
+                <option value={30}>30 minutes</option>
+                <option value={60}>60 minutes</option>
+              </select>
+            </SettingRow>
             <SettingRow label="Temperature" description={`${settings.temperature}`}>
               <input
                 type="range"

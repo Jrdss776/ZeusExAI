@@ -11,6 +11,7 @@ import {
   compactJamesConversation,
   formatJamesSkills,
   proposeJamesMemory,
+  selectJamesBrainNotes,
   selectJamesSkills,
 } from '../../lib/jamesIntelligence';
 import { MicButton } from './MicButton';
@@ -99,7 +100,11 @@ export function InputArea() {
   const messages = useAppStore((s) => s.messages);
   const speechEnabled = useAppStore((s) => s.settings.speechEnabled);
   const maxTokens = useAppStore((s) => s.settings.maxTokens);
+  const smartPerformanceIdleMinutes = useAppStore((s) => s.settings.smartPerformanceIdleMinutes);
   const temperature = useAppStore((s) => s.settings.temperature);
+  const keepAliveMinutes = Number.isFinite(smartPerformanceIdleMinutes)
+    ? Math.max(1, Math.min(120, Math.ceil(smartPerformanceIdleMinutes))) + 1
+    : 21;
   const createConversation = useAppStore((s) => s.createConversation);
   const addMessage = useAppStore((s) => s.addMessage);
   const updateLastAssistant = useAppStore((s) => s.updateLastAssistant);
@@ -233,7 +238,7 @@ export function InputArea() {
 
     // Build API messages before adding assistant placeholder
     const currentMessages = useAppStore.getState().messages;
-    const brainContext = loadBrainNotes()
+    const brainContext = selectJamesBrainNotes(loadBrainNotes(), content)
       .map((note) => `- ${BRAIN_AREAS[note.area].label} / ${note.title}: ${note.body}`)
       .join('\n');
     const skills = selectJamesSkills(content);
@@ -276,6 +281,7 @@ export function InputArea() {
       Array.from(researchSourcesByRef.values()).sort((a, b) => a.ref - b.ref);
     let lastFlush = 0;
     let ttftMs: number | undefined;
+    let modelReadyMs: number | undefined;
 
     setStreamState({
       isStreaming: true,
@@ -297,7 +303,15 @@ export function InputArea() {
       if (isLocalModel(selectedModel)) {
         setStreamState({ phase: 'Carregando modelo...' });
       }
+      const modelReadyStartedAt = Date.now();
       await beginModelUse(selectedModel);
+      modelReadyMs = Date.now() - modelReadyStartedAt;
+      if (isLocalModel(selectedModel) && modelReadyMs >= 250) {
+        useAppStore.getState().addLogEntry({
+          timestamp: Date.now(), level: 'info', category: 'model',
+          message: `${selectedModel} ready for chat in ${(modelReadyMs / 1000).toFixed(1)}s`,
+        });
+      }
 
       if (deepResearch) {
         for await (const ev of streamResearch(
@@ -425,7 +439,16 @@ export function InputArea() {
         }
       } else {
       for await (const sseEvent of streamChat(
-        { model: selectedModel, messages: apiMessages, stream: true, temperature, max_tokens: maxTokens },
+        {
+          model: selectedModel,
+          messages: apiMessages,
+          stream: true,
+          temperature,
+          max_tokens: maxTokens,
+          ...(isLocalModel(selectedModel) ? {
+            keep_alive: `${keepAliveMinutes}m`,
+          } : {}),
+        },
         controller.signal,
       )) {
         const eventName = sseEvent.event;
@@ -530,6 +553,7 @@ export function InputArea() {
         model_id: selectedModel,
         total_ms: totalMs,
         ttft_ms: ttftMs,
+        model_ready_ms: modelReadyMs,
         tokens_per_sec: usage?.completion_tokens
           ? usage.completion_tokens / (totalMs / 1000)
           : undefined,
@@ -568,7 +592,7 @@ export function InputArea() {
       resetStream();
       useAppStore.getState().addLogEntry({
         timestamp: Date.now(), level: 'info', category: 'chat',
-        message: `Response: ${accumulatedContent.length} chars`,
+        message: `Response: ${accumulatedContent.length} chars · ready ${modelReadyMs ?? 0}ms · TTFT ${ttftMs ?? 0}ms · total ${totalMs}ms`,
       });
       abortRef.current = null;
 
@@ -595,6 +619,7 @@ export function InputArea() {
     deepResearch,
     temperature,
     maxTokens,
+    keepAliveMinutes,
   ]);
 
   useEffect(() => {

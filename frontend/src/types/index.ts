@@ -55,6 +55,7 @@ export interface MessageTelemetry {
   model_id?: string;
   tokens_per_sec?: number;
   ttft_ms?: number;
+  model_ready_ms?: number;
   total_ms?: number;
   complexity_score?: number;
   complexity_tier?: string;

@@ -57,6 +57,23 @@ class TestOllamaGenerate:
         assert result["usage"]["completion_tokens"] == 5
         assert result["usage"]["total_tokens"] == 15
 
+    def test_generate_forwards_keep_alive(self, engine: OllamaEngine) -> None:
+        with respx.mock:
+            route = respx.post("http://testhost:11434/api/chat").mock(
+                return_value=httpx.Response(
+                    200,
+                    json={"message": {"content": "ok"}, "model": "qwen3.5:4b"},
+                )
+            )
+            engine.generate(
+                [Message(role=Role.USER, content="Hi")],
+                model="qwen3.5:4b",
+                keep_alive="21m",
+            )
+
+        payload = json.loads(route.calls[0].request.content)
+        assert payload["keep_alive"] == "21m"
+
     def test_generate_connection_error(self, engine: OllamaEngine) -> None:
         with respx.mock:
             respx.post("http://testhost:11434/api/chat").mock(
@@ -363,6 +380,43 @@ class TestOllamaStreamIsAsyncAndBounded:
             )
         ]
         assert any(c.content == "Hi" for c in chunks)
+
+    @pytest.mark.asyncio
+    async def test_stream_paths_forward_keep_alive(self) -> None:
+        captured: list[dict] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.append(json.loads(request.content))
+            return httpx.Response(
+                200,
+                text=json.dumps({"message": {"content": "ok"}, "done": True}) + "\n",
+            )
+
+        engine = OllamaEngine(host="http://localhost:11434")
+        engine._async_transport = httpx.MockTransport(handler)
+        _ = [
+            token
+            async for token in engine.stream(
+                [Message(role=Role.USER, content="Hi")],
+                model="qwen3.5:4b",
+                keep_alive="21m",
+            )
+        ]
+        engine.close()
+
+        engine = OllamaEngine(host="http://localhost:11434")
+        engine._async_transport = httpx.MockTransport(handler)
+        _ = [
+            chunk
+            async for chunk in engine.stream_full(
+                [Message(role=Role.USER, content="Hi")],
+                model="qwen3.5:4b",
+                keep_alive="21m",
+            )
+        ]
+        engine.close()
+
+        assert [payload["keep_alive"] for payload in captured] == ["21m", "21m"]
 
     @pytest.mark.asyncio
     async def test_timeout_is_applied_to_async_stream_client(self) -> None:

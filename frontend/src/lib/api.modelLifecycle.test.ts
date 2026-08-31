@@ -23,7 +23,7 @@ describe('Ollama model lifecycle', () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
       model: 'qwen3.5:9b',
       prompt: '',
-      keep_alive: '5m',
+      keep_alive: '21m',
     });
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
       model: 'qwen3.5:9b',

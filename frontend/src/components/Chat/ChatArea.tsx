@@ -97,7 +97,7 @@ export function ChatArea() {
           onClick={toggleSystemPanel}
           className="p-1.5 rounded-md transition-colors cursor-pointer"
           style={{ color: 'var(--color-text-tertiary)' }}
-          title={`${systemPanelOpen ? 'Hide' : 'Show'} system panel (${navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+I)`}
+          title={`${systemPanelOpen ? 'Ocultar' : 'Mostrar'} painel do sistema (${navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+I)`}
         >
           <PanelIcon size={16} />
         </button>
@@ -121,7 +121,7 @@ export function ChatArea() {
             className="px-3 py-1 rounded text-xs font-medium cursor-pointer"
             style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)', border: 'none' }}
           >
-            Connect
+            Conectar
           </button>
           <button
             onClick={() => setBannerDismissed(true)}
@@ -139,12 +139,12 @@ export function ChatArea() {
       >
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full px-4">
-            <div className="james-orb mb-5" aria-label="James online">
+            <div className="james-orb mb-5" aria-label="Gambit online">
               <span className="james-orb-core" />
               <span className="james-orb-ring" />
             </div>
             <p className="hud-label mb-2 tracking-[0.28em]" style={{ color: 'var(--color-accent)' }}>
-              JAMES // ONLINE
+              GAMBIT // ONLINE
             </p>
             <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
               {getGreeting()}
@@ -198,7 +198,7 @@ export function ChatArea() {
                 Conectar fontes de dados
               </button>
               <button
-                onClick={() => { navigate('/data-sources'); setTimeout(() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'messaging' })), 100); }}
+                onClick={() => navigate('/data-sources?tab=messaging')}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs cursor-pointer transition-colors"
                 style={{
                   background: 'var(--color-bg-secondary)',
@@ -209,7 +209,7 @@ export function ChatArea() {
                 onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--color-border)')}
               >
                 <MessageSquare size={14} style={{ color: 'var(--color-accent)' }} />
-                Configurar mensagens
+                Configurar canais de mensagens
               </button>
             </div>
           </div>

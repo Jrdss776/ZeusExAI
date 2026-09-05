@@ -33,6 +33,21 @@ _MAX_RETRIES = 3
 _AGENT_TICK_DEFAULT_MODEL = "gemma4:31b"
 
 
+def _resolve_agent_model(config: dict[str, Any], system: Any) -> str:
+    """Prefer the agent override, then the server's already loaded model.
+
+    The legacy fallback is kept only for standalone executor use.  Managed
+    agents must share the provider/model selected by the running server so a
+    local James session never falls through to an unrelated cloud client.
+    """
+
+    return (
+        str(config.get("model") or "").strip()
+        or str(getattr(system, "model", "") or "").strip()
+        or _AGENT_TICK_DEFAULT_MODEL
+    )
+
+
 class AgentExecutor:
     """Executes a single tick for a managed agent.
 
@@ -262,11 +277,7 @@ class AgentExecutor:
         engine = self._system.engine if self._system else None
         if engine is None:
             raise FatalError("No engine available in JarvisSystem")
-        model = (
-            config.get("model")
-            or _AGENT_TICK_DEFAULT_MODEL
-            or (self._system.model if self._system else "")
-        )
+        model = _resolve_agent_model(config, self._system)
         if not model:
             raise FatalError("No model configured for agent")
 

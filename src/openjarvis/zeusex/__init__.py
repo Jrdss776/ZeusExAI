@@ -132,6 +132,21 @@ from openjarvis.zeusex.gmail import (
     GmailService,
 )
 from openjarvis.zeusex.gmail_api import GmailAPI, GmailAPIResponse
+from openjarvis.zeusex.productivity_audit import (
+    JsonlProductivityAudit,
+    NullProductivityAudit,
+    ProductivityAuditEvent,
+    ProductivityAuditSink,
+    build_productivity_audit_from_env,
+)
+from openjarvis.zeusex.productivity_tasks import (
+    DisabledProductivityTaskConnector,
+    ProductivityTask,
+    ProductivityTaskConfig,
+    ProductivityTaskConnector,
+    ProductivityTaskService,
+    TaskAccessMode,
+)
 from openjarvis.zeusex.identity import ZEUSEX_IDENTITY, ZeusExIdentity
 from openjarvis.zeusex.marketplace import (
     AdvertisementDraft,
@@ -277,6 +292,7 @@ __all__ = [
     "GmailDraftPreview",
     "GmailMessage",
     "GmailService",
+    "JsonlProductivityAudit",
     "MarketplaceAdapter",
     "MarketplaceCopy",
     "LocalAPIAuthenticator",
@@ -289,6 +305,7 @@ __all__ = [
     "NormalizedListing",
     "NullSpeechCapture",
     "NullSpeechSynthesizer",
+    "NullProductivityAudit",
     "OllamaEngine",
     "OpportunityAssessment",
     "PotentialAnalysis",
@@ -298,6 +315,12 @@ __all__ = [
     "PWA_MANIFEST",
     "PWA_SERVICE_WORKER",
     "ProductInput",
+    "ProductivityAuditEvent",
+    "ProductivityAuditSink",
+    "ProductivityTask",
+    "ProductivityTaskConfig",
+    "ProductivityTaskConnector",
+    "ProductivityTaskService",
     "ProfitAnalysis",
     "OpenAICompatibleEngine",
     "ReadOnlyHTTPClient",
@@ -312,6 +335,7 @@ __all__ = [
     "Skill",
     "SkillRegistry",
     "ScheduledTask",
+    "TaskAccessMode",
     "ShopeeAdapter",
     "ShopeeReadClient",
     "SocialCopy",
@@ -335,6 +359,7 @@ __all__ = [
     "assess_beta_readiness",
     "backup_android_databases",
     "build_achadinhos_campaigns",
+    "build_productivity_audit_from_env",
     "build_analysis_360",
     "build_android_update_plan",
     "check_android_health",

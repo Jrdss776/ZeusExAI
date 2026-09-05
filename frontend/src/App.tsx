@@ -8,6 +8,8 @@ import { GetStartedPage } from './pages/GetStartedPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { DataSourcesPage } from './pages/DataSourcesPage';
 import { LogsPage } from './pages/LogsPage';
+import { PricingPage } from './pages/PricingPage';
+import { VampiraPage } from './pages/VampiraPage';
 import { CommandPalette } from './components/CommandPalette';
 import { SetupScreen } from './components/SetupScreen';
 import { Toaster } from './components/ui/sonner';
@@ -243,7 +245,9 @@ export default function App() {
           <Route path="agents" element={<AgentsPage />} />
           <Route path="logs" element={<LogsPage />} />
           <Route path="governance" element={<Navigate to="/" replace />} />
-          <Route path="commercial" element={<Navigate to="/" replace />} />
+          <Route path="commercial" element={<Navigate replace to="/dashboard" />} />
+          <Route path="pricing" element={<PricingPage />} />
+          <Route path="vampira" element={<VampiraPage />} />
         </Route>
       </Routes>
       <Toaster position="bottom-right" />

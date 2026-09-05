@@ -130,7 +130,11 @@ def _make_lightweight_system(
 
         pref = cfg.intelligence.preferred_engine
         key = pref or cfg.engine.default
-        resolved = get_engine(cfg, key)
+        # Validate the engine against the exact model already selected by the
+        # server.  Without this, discovery can choose a healthy cloud engine
+        # that cannot serve the local James model, later surfacing the
+        # misleading "OpenAI client not available" error.
+        resolved = get_engine(cfg, key, model=model or None)
 
         if resolved is not None:
             plain_engine = resolved[1]

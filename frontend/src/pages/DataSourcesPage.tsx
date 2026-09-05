@@ -7,6 +7,7 @@ import {
   bindAgentChannel,
   unbindAgentChannel,
   createManagedAgent,
+  updateManagedAgent,
   sendblueRegisterWebhook,
   sendblueHealth,
   getMemoryStats,
@@ -1963,11 +1964,27 @@ function MemorySection() {
 
 export function DataSourcesPage() {
   const [agents, setAgents] = useState<ManagedAgent[]>([]);
-  const [activeTab, setActiveTab] = useState<'sources' | 'messaging' | 'memory'>('sources');
+  const [activeTab, setActiveTab] = useState<'sources' | 'messaging' | 'memory'>(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    return requested === 'messaging' || requested === 'memory' ? requested : 'sources';
+  });
   const [creatingAgent, setCreatingAgent] = useState(false);
 
   const loadAgents = useCallback(() => {
-    fetchManagedAgents().then(setAgents).catch(() => {});
+    fetchManagedAgents().then(async (loadedAgents) => {
+      // Migrate only the exact legacy auto-created name. User-defined names
+      // remain untouched.
+      const legacy = loadedAgents.find((agent) => agent.name === 'My Assistant');
+      if (legacy) {
+        try {
+          const renamed = await updateManagedAgent(legacy.id, { name: 'Vampira' });
+          loadedAgents = loadedAgents.map((agent) => agent.id === legacy.id ? renamed : agent);
+        } catch {
+          // A failed cosmetic migration must not hide the existing agent.
+        }
+      }
+      setAgents(loadedAgents);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => { loadAgents(); }, [loadAgents]);
@@ -1981,8 +1998,8 @@ export function DataSourcesPage() {
     setCreatingAgent(true);
     try {
       const agent = await createManagedAgent({
-        name: "My Assistant",
-        template_id: "personal_deep_research",
+        name: "Vampira",
+        template_id: "vampira_productivity",
       });
       setAgents((prev) => [...prev, agent]);
       return agent.id;
@@ -2056,7 +2073,7 @@ export function DataSourcesPage() {
           ) : creatingAgent ? (
             <div className="flex items-center gap-3 p-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
               <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
-              Setting up your assistant...
+              Preparando a Vampira...
             </div>
           ) : null
         )}

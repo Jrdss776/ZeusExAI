@@ -17,6 +17,9 @@ import {
   Loader2,
   ScrollText,
   Database,
+  ShieldCheck,
+  Calculator,
+  CalendarHeart,
 } from 'lucide-react';
 import { ConversationList } from './ConversationList';
 import { useAppStore } from '../../lib/store';
@@ -54,12 +57,15 @@ export function Sidebar() {
 
   const navItems = [
     { path: '/', icon: MessageSquare, label: 'Chat' },
-    { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
-    { path: '/data-sources', icon: Database, label: 'Data Sources' },
-    { path: '/agents', icon: Bot, label: 'Agents' },
-    { path: '/logs', icon: ScrollText, label: 'Logs' },
-    { path: '/settings', icon: Settings, label: 'Settings' },
-    { path: '/get-started', icon: Rocket, label: 'Get Started' },
+    { path: '/dashboard', icon: BarChart3, label: 'Gambit' },
+    { path: '/vampira', icon: CalendarHeart, label: 'Vampira' },
+    { path: '/pricing', icon: Calculator, label: 'Precificação' },
+    { path: '/data-sources', icon: Database, label: 'Fontes de dados' },
+    { path: '/agents', icon: Bot, label: 'Agentes' },
+    { path: '/governance', icon: ShieldCheck, label: 'Governança' },
+    { path: '/logs', icon: ScrollText, label: 'Registros' },
+    { path: '/settings', icon: Settings, label: 'Configurações' },
+    { path: '/get-started', icon: Rocket, label: 'Primeiros passos' },
   ];
 
   return (
@@ -104,7 +110,7 @@ export function Sidebar() {
             </button>
             <div className="min-w-0 flex-1 px-2">
               <p className="truncate text-xs font-semibold tracking-[0.24em]" style={{ color: 'var(--color-accent)' }}>
-                JAMES
+                GAMBIT
               </p>
               <p className="truncate text-[9px] tracking-[0.12em]" style={{ color: 'var(--color-text-tertiary)' }}>
                 ZEUSEXAI CORE
@@ -117,7 +123,7 @@ export function Sidebar() {
                 style={{ color: 'var(--color-text-secondary)' }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg-tertiary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                title={`Theme: ${settings.theme} (click for ${nextTheme})`}
+                title={`Tema: ${settings.theme} (clique para ${nextTheme})`}
               >
                 <ThemeIcon size={16} />
               </button>
@@ -127,7 +133,7 @@ export function Sidebar() {
                 style={{ color: 'var(--color-text-secondary)' }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg-tertiary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                title="New chat"
+                title="Nova conversa"
               >
                 <Plus size={18} />
               </button>
@@ -157,12 +163,12 @@ export function Sidebar() {
                 style={{ color: deepResearch ? 'var(--color-accent)' : 'var(--color-text)' }}
               >
                 {deepResearch
-                  ? 'Deep Research'
-                  : selectedModel || serverInfo?.model || 'Select model'}
+                  ? 'Pesquisa Profunda'
+                  : selectedModel || serverInfo?.model || 'Selecionar modelo'}
               </span>
               {modelLoading && (
                 <span className="text-[10px] block text-left" style={{ color: 'var(--color-accent)' }}>
-                  Loading model...
+                  Carregando modelo...
                 </span>
               )}
             </div>
@@ -185,7 +191,7 @@ export function Sidebar() {
               <Search size={14} style={{ color: 'var(--color-text-tertiary)' }} />
               <input
                 type="text"
-                placeholder="Search chats..."
+                placeholder="Pesquisar conversas..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 bg-transparent outline-none text-sm"

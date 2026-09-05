@@ -6,7 +6,7 @@ describe('buildJamesSystemPrompt', () => {
     const prompt = buildJamesSystemPrompt('- Metas / Emprego: conseguir novo emprego');
 
     expect(prompt).toContain('assistente pessoal e profissional de Jair');
-    expect(prompt).toContain('James é o seu nome, nunca o nome do usuário');
+    expect(prompt).toContain('Gambit é o seu nome, nunca o nome do usuário');
     expect(prompt).toContain('O usuário se chama Jair');
     expect(prompt).toContain('chame Jair de senhor');
     expect(prompt).toContain('Metas / Emprego: conseguir novo emprego');

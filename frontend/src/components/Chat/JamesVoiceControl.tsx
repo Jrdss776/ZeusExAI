@@ -168,9 +168,9 @@ export function JamesVoiceControl({ paused }: Props) {
         const result = event.results[index];
         if (!result.isFinal) continue;
         const transcript = result[0]?.transcript?.trim() ?? '';
-        if (!normalize(transcript).includes('ei james')) continue;
+        if (!normalize(transcript).includes('ei gambit')) continue;
 
-        const match = transcript.match(/ei\s+james/i);
+        const match = transcript.match(/ei\s+gambit/i);
         const command = match
           ? transcript.slice((match.index ?? 0) + match[0].length).trim()
           : '';
@@ -203,17 +203,17 @@ export function JamesVoiceControl({ paused }: Props) {
     setEnabled(true);
     setStatus('listening');
     startRecognition();
-    speak('Escuta contínua ativada. Diga Ei James, senhor.');
+    speak('Escuta contínua ativada. Diga Ei Gambit, senhor.');
   }, [speak, startRecognition]);
 
   useEffect(() => disable, [disable]);
 
   const label =
-    status === 'listening' ? 'Ouvindo: Ei James'
-      : status === 'speaking' ? 'James falando'
+    status === 'listening' ? 'Ouvindo: Ei Gambit'
+      : status === 'speaking' ? 'Gambit falando'
         : status === 'blocked' ? 'Microfone bloqueado'
           : status === 'unsupported' ? 'Voz indisponível'
-            : 'Ativar Ei James';
+            : 'Ativar Ei Gambit';
 
   return (
     <button

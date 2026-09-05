@@ -322,7 +322,7 @@ export const useAppStore = create<AppState>((set, get) => {
       const store = loadConversations();
       const conv: Conversation = {
         id: generateId(),
-        title: 'New chat',
+        title: 'Nova conversa',
         createdAt: Date.now(),
         updatedAt: Date.now(),
         model: model || get().selectedModel || 'default',
@@ -389,7 +389,7 @@ export const useAppStore = create<AppState>((set, get) => {
       if (!conv) return;
       conv.messages.push(message);
       conv.updatedAt = Date.now();
-      if (message.role === 'user' && conv.title === 'New chat') {
+      if (message.role === 'user' && (conv.title === 'Nova conversa' || conv.title === 'New chat')) {
         conv.title =
           message.content.slice(0, 50) +
           (message.content.length > 50 ? '...' : '');

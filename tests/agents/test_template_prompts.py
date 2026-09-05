@@ -38,3 +38,15 @@ def test_create_from_template_preserves_icon(tmp_path):
     config = agent["config"]
     assert config.get("icon") == "🔬"
     mgr.close()
+
+
+def test_vampira_template_is_lightweight_and_requires_confirmation(tmp_path):
+    mgr = AgentManager(db_path=str(tmp_path / "test.db"))
+    agent = mgr.create_from_template("vampira_productivity", "Vampira")
+
+    assert agent["name"] == "Vampira"
+    assert agent["agent_type"] == "monitor_operative"
+    assert agent["config"]["tools"] == []
+    assert agent["config"]["max_turns"] == 4
+    assert "confirmação explícita" in agent["config"]["system_prompt"]
+    mgr.close()

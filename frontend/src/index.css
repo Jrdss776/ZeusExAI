@@ -820,3 +820,152 @@
     animation: none;
   }
 }
+
+/* Lightweight assistant portraits: static CSS only, so idle CPU stays flat. */
+.james-avatar-stage,
+.vampira-avatar-stage {
+  position: relative;
+  display: grid;
+  width: min(18rem, 70vw);
+  aspect-ratio: 1;
+  place-items: center;
+  isolation: isolate;
+}
+
+.james-avatar-stage { width: min(13rem, 58vw); }
+.vampira-avatar-stage { width: min(12rem, 48vw); }
+
+.james-avatar-stage::before,
+.vampira-avatar-stage::before {
+  content: '';
+  position: absolute;
+  inset: 10%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-accent-glow), transparent 68%);
+  filter: blur(12px);
+}
+
+.james-avatar-ring {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 52%, transparent);
+  border-radius: 50%;
+  box-shadow: inset 0 0 32px color-mix(in srgb, var(--color-accent) 10%, transparent), 0 0 22px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.james-avatar-ring-outer { inset: 5%; }
+.james-avatar-ring-inner { inset: 19%; border-style: dashed; }
+
+.james-avatar-core {
+  display: grid;
+  width: 42%;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  border-radius: 50%;
+  color: var(--color-accent);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--color-accent) 20%, transparent), var(--color-bg-secondary) 72%);
+  box-shadow: 0 0 40px var(--color-accent-glow);
+}
+
+.james-avatar-base {
+  position: absolute;
+  bottom: 8%;
+  width: 58%;
+  height: 10%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--color-accent) 58%, transparent), transparent 68%);
+}
+
+.james-face {
+  position: relative;
+  display: flex;
+  width: 62%;
+  height: 48%;
+  align-items: center;
+  justify-content: center;
+  gap: 22%;
+  border: 2px solid currentColor;
+  border-radius: 0.8rem;
+  box-shadow: inset 0 0 16px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.james-face::before,
+.james-face::after {
+  content: '';
+  position: absolute;
+  top: 38%;
+  width: 8%;
+  height: 25%;
+  border: 2px solid currentColor;
+}
+
+.james-face::before { left: -9%; border-right: 0; border-radius: 0.35rem 0 0 0.35rem; }
+.james-face::after { right: -9%; border-left: 0; border-radius: 0 0.35rem 0.35rem 0; }
+
+.james-antenna {
+  position: absolute;
+  bottom: 100%;
+  left: 49%;
+  width: 2px;
+  height: 28%;
+  background: currentColor;
+}
+
+.james-antenna::before {
+  content: '';
+  position: absolute;
+  top: -0.18rem;
+  left: -0.16rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.james-eye {
+  width: 0.18rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  transform-origin: center;
+  animation: james-blink 5.2s steps(1, end) infinite;
+}
+
+@keyframes james-blink {
+  0%, 45%, 49%, 100% { transform: scaleY(1); }
+  46%, 48% { transform: scaleY(0.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .james-eye { animation: none; }
+}
+
+.vampira-avatar-stage::before { background: radial-gradient(circle, var(--color-accent-purple-subtle), transparent 70%); }
+
+.vampira-circuit-icon {
+  width: 92%;
+  height: 92%;
+  overflow: visible;
+  fill: none;
+  stroke: #38bdf8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.55));
+}
+
+.vampira-circuit-orbit {
+  stroke-width: 1;
+  stroke-dasharray: 2 7;
+  opacity: 0.55;
+}
+
+.vampira-circuit-rays path { stroke-width: 1.25; opacity: 0.72; }
+.vampira-circuit-rays circle { fill: #7dd3fc; stroke: #7dd3fc; }
+
+.vampira-circuit-center {
+  fill: color-mix(in srgb, var(--color-bg-secondary) 88%, #082f49);
+  stroke: #7dd3fc;
+  stroke-width: 2;
+}

@@ -29,6 +29,7 @@ import type {
   TokenUsage,
   ToolCallInfo,
 } from '../../types';
+import { consumeChatDraft } from '../../lib/chatDraft';
 
 // While Deep Research is toggled on, poll connected sources for sync
 // progress so we can surface "Searching over N items — sync in progress"
@@ -93,6 +94,11 @@ export function InputArea() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const draft = consumeChatDraft();
+    if (draft) setInput(draft);
+  }, []);
 
   const activeId = useAppStore((s) => s.activeId);
   const selectedModel = useAppStore((s) => s.selectedModel);
@@ -197,7 +203,7 @@ export function InputArea() {
     const content = (override ?? input).trim();
     if (!content || streamState.isStreaming) return;
     if (!selectedModel) {
-      toast.error('Pick a model first (⌘K)');
+      toast.error('Selecione um modelo primeiro (⌘K)');
       return;
     }
 
@@ -218,7 +224,7 @@ export function InputArea() {
 
     const memoryCandidate = proposeJamesMemory(content, userMsg.id);
     if (memoryCandidate) {
-      toast('James identificou uma possível memória', {
+      toast('Gambit identificou uma possível memória', {
         description: memoryCandidate.body,
         duration: 12_000,
         action: {
@@ -655,10 +661,10 @@ export function InputArea() {
               border: `1px solid ${deepResearch ? 'var(--color-accent)' : 'var(--color-border)'}`,
               color: deepResearch ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
             }}
-            title={deepResearch ? 'Deep Research: on' : 'Deep Research: off'}
+            title={deepResearch ? 'Pesquisa Profunda: ativada' : 'Pesquisa Profunda: desativada'}
           >
             <Search size={12} />
-            Deep Research
+            Pesquisa Profunda
           </button>
         </div>
         {deepResearch && corpusSync.syncing && corpusSync.itemsSynced > 0 && (
@@ -687,7 +693,7 @@ export function InputArea() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={selectedModel ? 'Fale com James...' : 'Escolha um modelo primeiro (Ctrl+K)...'}
+          placeholder={selectedModel ? 'Mensagem para o Gambit...' : 'Selecione um modelo primeiro (⌘K)...'}
           rows={1}
           className="flex-1 bg-transparent outline-none resize-none text-sm leading-relaxed"
           style={{ color: 'var(--color-text)', maxHeight: '200px' }}
@@ -713,7 +719,7 @@ export function InputArea() {
             <button
               onClick={() => sendMessage()}
               disabled={!input.trim() || !selectedModel}
-              title={selectedModel ? 'Send message' : 'Pick a model first (⌘K)'}
+              title={selectedModel ? 'Enviar mensagem' : 'Selecione um modelo primeiro (⌘K)'}
               className="p-2 rounded-xl transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default"
               style={{
                 background: input.trim() ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
@@ -727,8 +733,8 @@ export function InputArea() {
       </div>
       <div className="flex items-center justify-center mt-2 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
         <span>
-          <kbd className="font-mono">Enter</kbd> to send &middot;{' '}
-          <kbd className="font-mono">Shift+Enter</kbd> for new line
+          <kbd className="font-mono">Enter</kbd> para enviar &middot;{' '}
+          <kbd className="font-mono">Shift+Enter</kbd> para nova linha
         </span>
       </div>
     </div>

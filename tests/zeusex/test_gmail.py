@@ -121,3 +121,25 @@ def test_api_preview_never_sends_and_send_is_blocked_without_confirmation() -> N
 def test_invalid_recipient_is_rejected() -> None:
     with pytest.raises(ValueError, match="válido"):
         GmailService().preview_draft(["invalido"], "Assunto", "Corpo")
+
+
+def test_send_writes_minimal_audit_events(tmp_path) -> None:
+    from openjarvis.zeusex.productivity_audit import JsonlProductivityAudit
+
+    audit_path = tmp_path / "audit.jsonl"
+    connector = FakeGmailConnector()
+    service = GmailService(
+        connector,
+        GmailConfig(True, GmailAccessMode.DRAFT_AND_SEND),
+        JsonlProductivityAudit(audit_path),
+    )
+    preview = service.preview_draft(["jr@example.com"], "Segredo", "Conteúdo privado")
+    with pytest.raises(PermissionError):
+        service.send(preview)
+    service.send(preview, confirmed=True)
+
+    log = audit_path.read_text(encoding="utf-8")
+    assert '\"decision\":\"blocked\"' in log
+    assert '\"decision\":\"allowed\"' in log
+    assert "Segredo" not in log
+    assert "Conteúdo privado" not in log

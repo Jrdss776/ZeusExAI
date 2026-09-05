@@ -13,6 +13,14 @@ from openjarvis.agents.errors import FatalError, RetryableError
 from openjarvis.core.events import EventBus, EventType
 
 
+def test_managed_agent_prefers_server_model_before_legacy_fallback():
+    from openjarvis.agents.executor import _resolve_agent_model
+
+    system = MagicMock(model="james-local:latest")
+    assert _resolve_agent_model({}, system) == "james-local:latest"
+    assert _resolve_agent_model({"model": "agent-override"}, system) == "agent-override"
+
+
 @pytest.fixture
 def manager():
     from openjarvis.agents.manager import AgentManager

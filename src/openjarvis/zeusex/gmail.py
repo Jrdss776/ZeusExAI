@@ -7,6 +7,11 @@ from enum import Enum
 from typing import Any, Protocol, Sequence
 import re
 
+from openjarvis.zeusex.productivity_audit import (
+    ProductivityAuditSink,
+    build_productivity_audit_from_env,
+)
+
 
 class GmailAccessMode(str, Enum):
     DISABLED = "disabled"
@@ -137,9 +142,11 @@ class GmailService:
         self,
         connector: GmailConnector | None = None,
         config: GmailConfig | None = None,
+        audit: ProductivityAuditSink | None = None,
     ) -> None:
         self.connector = connector or DisabledGmailConnector()
         self.config = config or GmailConfig()
+        self.audit = audit or build_productivity_audit_from_env()
 
     def status(self) -> GmailConnectorStatus:
         connector_status = self.connector.status()
@@ -222,12 +229,17 @@ class GmailService:
 
     def send(self, preview: GmailDraftPreview, *, confirmed: bool = False) -> GmailMessage:
         if not self.config.enabled:
+            self.audit.record("gmail.send", "blocked", "integration_disabled")
             raise PermissionError("Integração com Gmail está desativada.")
         if self.config.access_mode is not GmailAccessMode.DRAFT_AND_SEND:
+            self.audit.record("gmail.send", "blocked", "send_mode_required")
             raise PermissionError("Envio exige modo draft_and_send.")
         if not confirmed:
+            self.audit.record("gmail.send", "blocked", "explicit_confirmation_required")
             raise PermissionError("Envio de e-mail exige confirmação explícita.")
-        return self.connector.send_message(preview)
+        message = self.connector.send_message(preview)
+        self.audit.record("gmail.send", "allowed", "explicitly_confirmed", resource_id=message.id)
+        return message
 
 
 __all__ = [

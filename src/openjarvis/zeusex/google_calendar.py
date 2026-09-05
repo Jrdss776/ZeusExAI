@@ -11,6 +11,11 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Protocol, Sequence
 
+from openjarvis.zeusex.productivity_audit import (
+    ProductivityAuditSink,
+    build_productivity_audit_from_env,
+)
+
 
 class CalendarAccessMode(str, Enum):
     DISABLED = "disabled"
@@ -119,9 +124,11 @@ class GoogleCalendarService:
         self,
         connector: GoogleCalendarConnector | None = None,
         config: GoogleCalendarConfig | None = None,
+        audit: ProductivityAuditSink | None = None,
     ) -> None:
         self.connector = connector or DisabledGoogleCalendarConnector()
         self.config = config or GoogleCalendarConfig()
+        self.audit = audit or build_productivity_audit_from_env()
 
     @staticmethod
     def _validate_interval(time_min: str, time_max: str) -> None:
@@ -169,15 +176,20 @@ class GoogleCalendarService:
 
     def create_event(self, event: CalendarEvent, *, confirmed: bool = False) -> CalendarEvent:
         if not self.config.enabled:
+            self.audit.record("calendar.create", "blocked", "integration_disabled", resource_id=event.id)
             raise PermissionError("Integração com Google Calendar está desativada.")
         if self.config.access_mode is not CalendarAccessMode.READ_WRITE:
+            self.audit.record("calendar.create", "blocked", "write_mode_required", resource_id=event.id)
             raise PermissionError("Criação de eventos exige modo read_write.")
         if not confirmed:
+            self.audit.record("calendar.create", "blocked", "explicit_confirmation_required", resource_id=event.id)
             raise PermissionError("Criação de evento exige confirmação explícita.")
         self._validate_interval(event.start, event.end)
         if not event.title.strip():
             raise ValueError("O título do evento não pode ficar vazio.")
-        return self.connector.create_event(event)
+        created = self.connector.create_event(event)
+        self.audit.record("calendar.create", "allowed", "explicitly_confirmed", resource_id=created.id)
+        return created
 
     def preview_event(self, event: CalendarEvent) -> CalendarEventPreview:
         """Valida uma proposta local sem exigir rede nem criar o evento."""

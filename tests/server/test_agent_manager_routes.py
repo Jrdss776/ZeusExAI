@@ -576,8 +576,9 @@ class TestLightweightSystemEngineResolution:
     def _capture_get_engine(self, monkeypatch):
         captured = {}
 
-        def fake_get_engine(cfg, key):
+        def fake_get_engine(cfg, key, model=None):
             captured["key"] = key
+            captured["model"] = model
             return ("resolved", MagicMock())
 
         monkeypatch.setattr("openjarvis.engine._discovery.get_engine", fake_get_engine)
@@ -592,6 +593,7 @@ class TestLightweightSystemEngineResolution:
             engine=MagicMock(), model="m", config=self._cfg("vllm", "ollama")
         )
         assert captured["key"] == "vllm"
+        assert captured["model"] == "m"
 
     def test_falls_back_to_engine_default_without_preference(self, monkeypatch):
         pytest.importorskip("fastapi")

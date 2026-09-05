@@ -58,7 +58,7 @@ export const JAMES_SKILLS: JamesSkill[] = [
     id: 'technical-diagnosis',
     name: 'Diagnóstico técnico',
     description: 'Investiga causa, evidência e validação antes de propor mudanças.',
-    triggers: ['erro', 'bug', 'falha', 'travando', 'nao funciona', 'codigo', 'programacao', 'github', 'zeusexai', 'james'],
+    triggers: ['erro', 'bug', 'falha', 'travando', 'nao funciona', 'codigo', 'programacao', 'github', 'zeusexai', 'gambit'],
     instructions: [
       'Separe sintoma, causa provável, evidência e correção recomendada.',
       'Não trate hipótese como diagnóstico confirmado.',
@@ -186,7 +186,7 @@ export function compactJamesConversation(
 
   const summaryLines = older
     .slice(-12)
-    .map((message) => `${message.role === 'user' ? 'Senhor' : 'James'}: ${clip(message.content, 240)}`);
+    .map((message) => `${message.role === 'user' ? 'Senhor' : 'Gambit'}: ${clip(message.content, 240)}`);
   const omitted = Math.max(0, older.length - summaryLines.length);
   const prefix = omitted > 0 ? `[${omitted} mensagens anteriores omitidas]\n` : '';
 
@@ -269,7 +269,7 @@ export function proposeJamesMemory(content: string, sourceMessageId: string): Me
   const normalized = normalizeJamesText(clean);
 
   const explicit = clean.match(
-    /^(?:james[, ]+)?(?:lembre|guarde|anote)(?:-se)?(?: de)?(?: que)?\s+(.+)$/iu,
+    /^(?:(?:gambit|james)[, ]+)?(?:lembre|guarde|anote)(?:-se)?(?: de)?(?: que)?\s+(.+)$/iu,
   );
   const durableSignals = [
     'eu prefiro ', 'prefiro ', 'meu objetivo ', 'minha meta ', 'eu moro ', 'moro em ',

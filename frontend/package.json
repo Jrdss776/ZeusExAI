@@ -1,15 +1,15 @@
 {
   "name": "openjarvis-chat",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:tauri": "tsc -b && vite build --outDir dist --mode tauri",
+    "build": "tsc -b && vite build --configLoader runner",
+    "build:tauri": "tsc -b && vite build --configLoader runner --outDir dist --mode tauri",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run"
@@ -57,5 +57,11 @@
     "vite": "^6.0.0",
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^3.2.6"
+  },
+  "allowScripts": {
+    "core-js@3.49.0": true,
+    "esbuild@0.25.12": true,
+    "msw@2.12.14": true,
+    "protobufjs@7.5.7": true
   }
 }

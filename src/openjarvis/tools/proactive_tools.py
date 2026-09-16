@@ -133,7 +133,16 @@ class QueueActionTool(BaseTool):
                 f"  '{TIER_LOW}'     — ask once per pattern, then remember\n"
                 f"  '{TIER_MEDIUM}'  — ask each time unless user said 'always'\n"
                 f"  '{TIER_HIGH}'    — always ask, never auto-remember\n"
-                "Returns the action_id so you can reference it in notifications."
+                "Returns the action_id so you can reference it in notifications. "
+                "Supported productivity actions and payloads: "
+                "email_send={recipients:[email],subject,body}; "
+                "calendar_create={summary,start,end,calendar_id?,location?,description?,attendees?}; "
+                "task_create={title,notes?,due?,task_list_id?}; "
+                "task_complete/task_delete={task_id,task_list_id?}; "
+                "local_process_close={pid,expected_name}; "
+                "local_organize_folder={path,snapshot_hash}. "
+                "Local computer actions must use tier='high' and are executed only "
+                "after explicit approval in the desktop bell."
             ),
             parameters={
                 "type": "object",
@@ -378,7 +387,8 @@ class ExecutePendingActionsTool(BaseTool):
         results: List[Dict[str, Any]] = []
         for action in actions:
             success, message = self._run_action(action)
-            store.update_status(action.id, STATUS_EXECUTED)
+            if success:
+                store.update_status(action.id, STATUS_EXECUTED)
             results.append(
                 {
                     "id": action.id,
@@ -412,6 +422,8 @@ class ExecutePendingActionsTool(BaseTool):
                 return _exec_email_delete(payload)
             if atype == "email_archive":
                 return _exec_email_archive(payload)
+            if atype == "email_send":
+                return _exec_email_send(payload)
             if atype == "sms_send":
                 return _exec_sms_send(payload)
             if atype == "sms_draft_reply":
@@ -421,6 +433,18 @@ class ExecutePendingActionsTool(BaseTool):
                 return _exec_calendar_decline(payload)
             if atype == "calendar_accept":
                 return _exec_calendar_accept(payload)
+            if atype == "calendar_create":
+                return _exec_calendar_create(payload)
+            if atype == "task_create":
+                return _exec_task_create(payload)
+            if atype == "task_complete":
+                return _exec_task_complete(payload)
+            if atype == "task_delete":
+                return _exec_task_delete(payload)
+            if atype == "local_process_close":
+                return _exec_local_process_close(payload)
+            if atype == "local_organize_folder":
+                return _exec_local_organize_folder(payload)
             return False, f"No executor registered for action_type '{atype}'"
         except Exception as exc:
             return False, str(exc)
@@ -455,6 +479,23 @@ def _exec_email_archive(payload: Dict[str, Any]) -> Tuple[bool, str]:
         conn = GmailConnector()
         conn.archive_message(msg_id)
         return True, f"Archived email {msg_id}"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _exec_email_send(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    recipients = payload.get("recipients") or []
+    if isinstance(recipients, str):
+        recipients = [recipients]
+    try:
+        from openjarvis.connectors.gmail import GmailConnector
+
+        result = GmailConnector().send_message(
+            recipients,
+            str(payload.get("subject") or ""),
+            str(payload.get("body") or ""),
+        )
+        return True, f"Sent email {result.get('id', '')}".strip()
     except Exception as exc:
         return False, str(exc)
 
@@ -501,6 +542,92 @@ def _exec_calendar_accept(payload: Dict[str, Any]) -> Tuple[bool, str]:
         return True, f"Accepted calendar event {event_id}"
     except Exception as exc:
         return False, str(exc)
+
+
+def _exec_calendar_create(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    try:
+        from openjarvis.connectors.gcalendar import GCalendarConnector
+
+        result = GCalendarConnector().create_event(
+            summary=str(payload.get("summary") or payload.get("title") or ""),
+            start=str(payload.get("start") or ""),
+            end=str(payload.get("end") or ""),
+            calendar_id=str(payload.get("calendar_id") or "primary"),
+            location=str(payload.get("location") or ""),
+            description=str(payload.get("description") or ""),
+            attendees=payload.get("attendees") or [],
+            time_zone=str(payload.get("time_zone") or ""),
+        )
+        return True, f"Created calendar event {result.get('id', '')}".strip()
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _exec_task_create(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    try:
+        from openjarvis.connectors.google_tasks import GoogleTasksConnector
+
+        result = GoogleTasksConnector().create_task(
+            str(payload.get("title") or ""),
+            notes=str(payload.get("notes") or ""),
+            due=str(payload.get("due") or ""),
+            task_list_id=str(payload.get("task_list_id") or "@default"),
+        )
+        return True, f"Created task {result.get('id', '')}".strip()
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _exec_task_complete(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    try:
+        from openjarvis.connectors.google_tasks import GoogleTasksConnector
+
+        result = GoogleTasksConnector().complete_task(
+            str(payload.get("task_id") or ""),
+            task_list_id=str(payload.get("task_list_id") or "@default"),
+        )
+        return True, f"Completed task {result.get('id', '')}".strip()
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _exec_task_delete(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    task_id = str(payload.get("task_id") or "")
+    try:
+        from openjarvis.connectors.google_tasks import GoogleTasksConnector
+
+        GoogleTasksConnector().delete_task(
+            task_id,
+            task_list_id=str(payload.get("task_list_id") or "@default"),
+        )
+        return True, f"Deleted task {task_id}"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _exec_local_process_close(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    """Gracefully close one process whose PID/name were shown for approval."""
+
+    try:
+        pid = int(payload.get("pid", 0))
+    except (TypeError, ValueError):
+        return False, "Invalid pid in payload"
+    expected_name = str(payload.get("expected_name") or "").strip()
+    from openjarvis.tools.pc_control import execute_graceful_process_close
+
+    return execute_graceful_process_close(pid, expected_name)
+
+
+def _exec_local_organize_folder(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    """Apply a previously previewed folder plan after desktop approval."""
+
+    path = str(payload.get("path") or "").strip()
+    snapshot_hash = str(payload.get("snapshot_hash") or "").strip()
+    if not path or not snapshot_hash:
+        return False, "Missing path or snapshot_hash in payload"
+    from openjarvis.tools.pc_control import execute_folder_organization
+
+    return execute_folder_organization(path, snapshot_hash)
 
 
 # ---------------------------------------------------------------------------

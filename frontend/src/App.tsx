@@ -8,8 +8,10 @@ import { GetStartedPage } from './pages/GetStartedPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { DataSourcesPage } from './pages/DataSourcesPage';
 import { LogsPage } from './pages/LogsPage';
-import { PricingPage } from './pages/PricingPage';
+import { GovernancePage } from './pages/GovernancePage';
+import { CommercialPage } from './pages/CommercialPage';
 import { VampiraPage } from './pages/VampiraPage';
+import { CommitmentsPage } from './pages/CommitmentsPage';
 import { CommandPalette } from './components/CommandPalette';
 import { SetupScreen } from './components/SetupScreen';
 import { Toaster } from './components/ui/sonner';
@@ -67,6 +69,15 @@ export default function App() {
       }),
     };
     configureSmartPerformance({ enabled: false, ...callbacks });
+
+    // The Tauri backend starts Ollama, preloads the configured model and sends
+    // keep_alive with every chat request. Direct browser calls to :11434 are
+    // redundant in desktop mode and can be rejected by Ollama/CORS, causing an
+    // activity-event retry storm (keydown, pointerdown and focus each retried).
+    if (isTauri()) {
+      return () => configureSmartPerformance({ enabled: false, ...callbacks });
+    }
+
     getInferenceSource()
       .then((source) => {
         if (cancelled) return;
@@ -237,17 +248,18 @@ export default function App() {
       <UpdateChecker />
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<ChatPage />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="chat" element={<ChatPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="vampira" element={<VampiraPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="get-started" element={<GetStartedPage />} />
           <Route path="data-sources" element={<DataSourcesPage />} />
+          <Route path="commitments" element={<CommitmentsPage />} />
           <Route path="agents" element={<AgentsPage />} />
           <Route path="logs" element={<LogsPage />} />
-          <Route path="governance" element={<Navigate to="/" replace />} />
-          <Route path="commercial" element={<Navigate replace to="/dashboard" />} />
-          <Route path="pricing" element={<PricingPage />} />
-          <Route path="vampira" element={<VampiraPage />} />
+          <Route path="commercial" element={<CommercialPage />} />
+          <Route path="governance" element={<GovernancePage />} />
         </Route>
       </Routes>
       <Toaster position="bottom-right" />

@@ -32,6 +32,28 @@ def test_recommended_model_single_model():
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+def test_recommended_model_prefers_configured_local_model():
+    """An installed configured model should remain authoritative."""
+    from openjarvis.server.agent_manager_routes import _pick_recommended_model
+
+    models = ["qwen2.5:3b", "qwen3.5:4b", "qwen3.5:9b"]
+    result = _pick_recommended_model(models, "qwen2.5:3b")
+    assert result == {
+        "model": "qwen2.5:3b",
+        "reason": "Configured active model",
+    }
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+def test_recommended_model_matches_latest_alias():
+    """Configured tags should match Ollama's optional :latest suffix."""
+    from openjarvis.server.agent_manager_routes import _pick_recommended_model
+
+    result = _pick_recommended_model(["qwen2.5:3b"], "qwen2.5:3b:latest")
+    assert result["model"] == "qwen2.5:3b"
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 def test_recommended_model_filters_cloud():
     """Cloud models should be excluded from recommendation."""
     from openjarvis.server.agent_manager_routes import _pick_recommended_model

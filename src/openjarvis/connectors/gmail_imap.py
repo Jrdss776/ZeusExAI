@@ -8,7 +8,6 @@ Setup: generate an app password at https://myaccount.google.com/apppasswords
 
 from __future__ import annotations
 
-import codecs
 import email as email_lib
 import imaplib
 import logging
@@ -28,39 +27,43 @@ logger = logging.getLogger(__name__)
 _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "gmail_imap.json")
 
 
-def _header_text(raw: object) -> str:
-    """Return any email header value as JSON-safe text."""
-    if raw is None:
-        return ""
-    if isinstance(raw, bytes):
-        return raw.decode("utf-8", errors="replace")
-    try:
-        return str(raw)
-    except (LookupError, UnicodeError):
-        return repr(raw)
+def _decode_bytes(payload: bytes, charset: Optional[str] = None) -> str:
+    """Decode email bytes even when the declared charset is missing or bogus.
+
+    Some Gmail messages use RFC 2047's ``unknown-8bit`` marker.  It describes
+    undecoded 8-bit data; it is not a Python codec name, so passing it directly
+    to ``bytes.decode`` raises ``LookupError`` and used to abort the whole sync.
+    """
+    pseudo_charsets = {"unknown-8bit", "x-unknown", "binary", "8bit"}
+    candidates: list[str] = []
+    if charset and charset.strip().lower() not in pseudo_charsets:
+        candidates.append(charset.strip())
+    candidates.extend(["utf-8", "cp1252", "latin-1"])
+
+    tried: set[str] = set()
+    for encoding in candidates:
+        key = encoding.lower()
+        if key in tried:
+            continue
+        tried.add(key)
+        try:
+            return payload.decode(encoding)
+        except (LookupError, UnicodeDecodeError):
+            continue
+    return payload.decode("utf-8", errors="replace")
 
 
-def _decode_subject(raw: object) -> str:
+def _decode_subject(raw: str) -> str:
     """Decode a possibly-encoded email subject header."""
     if not raw:
         return ""
-    decoded_parts = decode_header(_header_text(raw))
-    parts = []
-    for part, encoding in decoded_parts:
-        if not isinstance(part, bytes):
-            parts.append(part)
-            continue
-
-        # Some old or malformed messages advertise the non-standard
-        # ``unknown-8bit`` charset.  Treat unknown codecs as UTF-8 with
-        # replacement instead of aborting the entire mailbox sync.
-        encoding = encoding or "utf-8"
-        try:
-            codecs.lookup(encoding)
-        except LookupError:
-            encoding = "utf-8"
-        parts.append(part.decode(encoding, errors="replace"))
-    return "".join(parts)
+    decoded_parts = decode_header(raw)
+    return "".join(
+        _decode_bytes(part, enc)
+        if isinstance(part, bytes)
+        else part
+        for part, enc in decoded_parts
+    )
 
 
 def _extract_text_body(msg: email_lib.message.Message) -> str:
@@ -71,17 +74,17 @@ def _extract_text_body(msg: email_lib.message.Message) -> str:
             if ct == "text/plain":
                 payload = part.get_payload(decode=True)
                 if payload:
-                    return payload.decode("utf-8", errors="replace")
+                    return _decode_bytes(payload, part.get_content_charset())
         # Fallback: try text/html
         for part in msg.walk():
             if part.get_content_type() == "text/html":
                 payload = part.get_payload(decode=True)
                 if payload:
-                    return payload.decode("utf-8", errors="replace")
+                    return _decode_bytes(payload, part.get_content_charset())
         return ""
     payload = msg.get_payload(decode=True)
     if payload:
-        return payload.decode("utf-8", errors="replace")
+        return _decode_bytes(payload, msg.get_content_charset())
     return ""
 
 
@@ -210,11 +213,11 @@ class GmailIMAPConnector(BaseConnector):
                 continue
 
             subject = _decode_subject(msg.get("Subject", ""))
-            sender = _header_text(msg.get("From", ""))
-            to = _header_text(msg.get("To", ""))
+            sender = msg.get("From", "")
+            to = msg.get("To", "")
             body = _extract_text_body(msg)
             timestamp = _parse_date(msg)
-            message_id = _header_text(msg.get("Message-ID", mid.decode()))
+            message_id = msg.get("Message-ID", mid.decode())
 
             synced += 1
             yield Document(
@@ -226,7 +229,7 @@ class GmailIMAPConnector(BaseConnector):
                 author=sender,
                 participants=[a.strip() for a in (to or "").split(",") if a.strip()],
                 timestamp=timestamp,
-                thread_id=_header_text(msg.get("In-Reply-To", "")),
+                thread_id=msg.get("In-Reply-To", ""),
                 url="https://mail.google.com/mail/u/0/#inbox",
                 metadata={
                     "message_id": message_id,

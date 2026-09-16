@@ -11,6 +11,30 @@ const JARVIS_PORT: u16 = 8000;
 const DESKTOP_UV_SYNC_COMMAND: &str =
     "uv sync --extra desktop --extra inference-cloud --extra inference-google --group desktop-native";
 
+fn dependency_sync_stamp(root: &std::path::Path) -> std::path::PathBuf {
+    root.join(".venv").join(".zeusex-sync-stamp")
+}
+
+fn dependencies_need_sync(root: &std::path::Path) -> bool {
+    let python = if cfg!(target_os = "windows") {
+        root.join(".venv").join("Scripts").join("python.exe")
+    } else {
+        root.join(".venv").join("bin").join("python")
+    };
+    if !python.is_file() {
+        return true;
+    }
+
+    let stamp = dependency_sync_stamp(root);
+    let Ok(stamp_time) = std::fs::metadata(&stamp).and_then(|meta| meta.modified()) else {
+        return true;
+    };
+    [root.join("uv.lock"), root.join("pyproject.toml")]
+        .iter()
+        .filter_map(|path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok())
+        .any(|source_time| source_time > stamp_time)
+}
+
 /// Small, fast model used when startup needs a default Ollama tag.
 const STARTUP_MODEL: &str = "qwen3.5:4b";
 
@@ -112,7 +136,7 @@ struct BootPlan {
     /// e.g. `("lmstudio", "http://localhost:1234")`. Written into
     /// ~/.openjarvis/config.toml so `jarvis serve` picks it up.
     engine_host: Option<(String, String)>,
-    /// Args appended after `uv run jarvis serve --port <port>`.
+    /// Args appended after `jarvis serve --port <port>`.
     serve_args: Vec<String>,
 }
 
@@ -139,7 +163,7 @@ fn boot_plan(cfg: &InferenceConfig, ram_gb: f64) -> BootPlan {
                     "--model".into(),
                     model,
                     "--agent".into(),
-                    "simple".into(),
+                    "james_master".into(),
                 ],
             }
         }
@@ -170,7 +194,7 @@ fn boot_plan(cfg: &InferenceConfig, ram_gb: f64) -> BootPlan {
                     "--model".into(),
                     model,
                     "--agent".into(),
-                    "simple".into(),
+                    "james_master".into(),
                 ],
             }
         }
@@ -267,10 +291,19 @@ fn resolve_bin(name: &str) -> String {
 }
 
 /// Find the OpenJarvis project root (contains pyproject.toml).
-/// Checks OPENJARVIS_ROOT env var, walks up from the executable, then
-/// probes common clone locations.
+/// Always prefers the canonical ZeusExAI checkout, then checks an explicit
+/// override, walks up from the executable, and probes legacy clone locations.
 fn find_project_root() -> Option<std::path::PathBuf> {
-    // 1. Explicit env var override
+    let home = home_dir();
+
+    // 1. Canonical ZeusExAI checkout. This intentionally wins over inherited
+    // OPENJARVIS_ROOT values so every desktop launch uses the official project.
+    let canonical = std::path::PathBuf::from(format!("{home}/Documents/ZeusExAI"));
+    if canonical.join("pyproject.toml").exists() {
+        return Some(canonical);
+    }
+
+    // 2. Explicit env var override for machines without the canonical checkout.
     if let Ok(root) = std::env::var("OPENJARVIS_ROOT") {
         let path = std::path::PathBuf::from(&root);
         if path.join("pyproject.toml").exists() {
@@ -278,7 +311,7 @@ fn find_project_root() -> Option<std::path::PathBuf> {
         }
     }
 
-    // 2. Walk up from the running executable (works in dev and .app bundle)
+    // 3. Walk up from the running executable (works in dev and .app bundle)
     if let Ok(exe) = std::env::current_exe() {
         let mut dir = exe.parent().map(|p| p.to_path_buf());
         for _ in 0..8 {
@@ -291,8 +324,7 @@ fn find_project_root() -> Option<std::path::PathBuf> {
         }
     }
 
-    // 3. Fallback: well-known direct paths
-    let home = home_dir();
+    // 4. Fallback: well-known direct paths
     let direct = [
         format!("{home}/OpenJarvis"),
         format!("{home}/projects/hazy/OpenJarvis"),
@@ -314,7 +346,7 @@ fn find_project_root() -> Option<std::path::PathBuf> {
         }
     }
 
-    // 4. Shallow scan: look for OpenJarvis one level inside common parent dirs.
+    // 5. Shallow scan: look for OpenJarvis one level inside common parent dirs.
     //    This catches clones like ~/Documents/my-stuff/OpenJarvis without
     //    needing to enumerate every possible intermediate folder.
     let scan_parents = [
@@ -379,6 +411,7 @@ struct BackendManager {
     ollama: Option<ChildHandle>,
     jarvis: Option<ChildHandle>,
     jarvis_stderr_tail: StderrTail,
+    booting: bool,
 }
 
 impl Default for BackendManager {
@@ -387,6 +420,7 @@ impl Default for BackendManager {
             ollama: None,
             jarvis: None,
             jarvis_stderr_tail: Arc::new(Mutex::new(Vec::new())),
+            booting: false,
         }
     }
 }
@@ -457,6 +491,33 @@ async fn wait_for_url(url: &str, timeout: Duration) -> bool {
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
     false
+}
+
+/// Load the selected Ollama model while the setup screen is still visible.
+/// This moves the expensive cold start out of the user's first James message.
+async fn warm_ollama_model(model: &str) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(120))
+        .build()
+        .map_err(|err| format!("Could not create Ollama preload client: {err}"))?;
+    let response = client
+        .post(format!("http://127.0.0.1:{OLLAMA_PORT}/api/generate"))
+        .json(&serde_json::json!({
+            "model": model,
+            "prompt": "",
+            "keep_alive": "30m",
+        }))
+        .send()
+        .await
+        .map_err(|err| format!("Could not preload {model}: {err}"))?;
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Ollama preload for {model} returned HTTP {}",
+            response.status()
+        ))
+    }
 }
 
 /// True if a custom OpenAI-compatible endpoint answers at all (any HTTP
@@ -660,9 +721,13 @@ fn preferred_installed_model(models: &[String]) -> Option<String> {
         .cloned()
 }
 
-fn startup_installed_model(requested_model: &str, installed_models: &[String]) -> Option<String> {
+fn startup_installed_model(
+    requested_model: &str,
+    installed_models: &[String],
+    allow_fallback: bool,
+) -> Option<String> {
     matching_installed_model(installed_models, requested_model)
-        .or_else(|| preferred_installed_model(installed_models))
+        .or_else(|| allow_fallback.then(|| preferred_installed_model(installed_models)).flatten())
 }
 
 fn should_persist_resolved_model(cfg: &InferenceConfig) -> bool {
@@ -917,6 +982,19 @@ fn check_jarvis_port_available() -> Result<(), String> {
 // ---------------------------------------------------------------------------
 
 async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
+    {
+        let mut manager = backend.lock().await;
+        if manager.booting {
+            return;
+        }
+        manager.booting = true;
+    }
+
+    boot_backend_inner(backend.clone(), status).await;
+    backend.lock().await.booting = false;
+}
+
+async fn boot_backend_inner(backend: SharedBackend, status: SharedStatus) {
     // Decide the inference source (default Ollama) before launching anything.
     let cfg = read_inference_config();
     let plan = boot_plan(&cfg, total_ram_gb());
@@ -989,7 +1067,11 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         }
 
         let installed_models = ollama_model_names().await;
-        let resolved_model = if let Some(installed) = startup_installed_model(&model, &installed_models) {
+        let resolved_model = if let Some(installed) = startup_installed_model(
+            &model,
+            &installed_models,
+            should_persist_resolved_model(&cfg),
+        ) {
             installed
         } else {
             {
@@ -1044,6 +1126,16 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             let mut persisted = cfg.clone();
             persisted.model = Some(resolved_model);
             let _ = write_inference_config(&persisted);
+        }
+
+        {
+            let mut s = status.lock().await;
+            s.detail = format!("Loading {} into memory...", serve_model_override.as_deref().unwrap_or(&model));
+        }
+        if let Some(active_model) = serve_model_override.as_deref() {
+            if let Err(err) = warm_ollama_model(active_model).await {
+                eprintln!("Warning: {err}");
+            }
         }
 
         {
@@ -1315,8 +1407,42 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     }
 
     if let Err(err) = check_jarvis_port_available() {
+        // A previous desktop instance may have started the API server only a
+        // moment ago. On Windows the socket is reserved before `/health` is
+        // ready, so treating that short window as a hard conflict produces a
+        // misleading OS error (10048). Give the existing server a little time
+        // to become healthy and attach to it when it does.
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .unwrap();
+        let mut existing_server_ready = false;
+        for _ in 0..20 {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            existing_server_ready = client
+                .get(format!("http://127.0.0.1:{}/health", JARVIS_PORT))
+                .send()
+                .await
+                .map(|response| response.status().is_success())
+                .unwrap_or(false);
+            if existing_server_ready {
+                break;
+            }
+        }
+
         let mut s = status.lock().await;
-        s.error = Some(err);
+        if existing_server_ready {
+            s.phase = "ready".into();
+            s.detail = format!(
+                "Connected to existing API server on port {}.",
+                JARVIS_PORT,
+            );
+            s.server_ready = true;
+            s.model_ready = true;
+            s.ollama_ready = true;
+        } else {
+            s.error = Some(err);
+        }
         return;
     }
 
@@ -1343,41 +1469,45 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     // to the user BEFORE the long server-start wait. The status detail
     // message also indicates this can take a couple of minutes on first
     // boot so users don't restart the app thinking it's stuck.
-    {
+    if dependencies_need_sync(root) {
         let mut s = status.lock().await;
         s.detail = "Installing dependencies (uv sync — may take 1-2 min on first boot)...".into();
-    }
-    let mut sync_cmd = tokio::process::Command::new(&uv_bin);
-    sync_cmd
-        .args([
-            "sync",
-            "--extra", "desktop",
-            "--extra", "inference-cloud",
-            "--extra", "inference-google",
-            // openjarvis_rust lives in a uv dependency group (not the published
-            // `desktop` extra) so pip installs from PyPI don't require it (#584).
-            "--group", "desktop-native",
-        ])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .current_dir(root);
-    // Avoid LD_LIBRARY_PATH leak when running inside an AppImage (#455).
-    prepare_subprocess_for_appimage(&mut sync_cmd);
-    add_cargo_bin_to_path(&mut sync_cmd);
-    let sync_output = sync_cmd.output().await;
-    match sync_output {
-        Ok(out) if !out.status.success() => {
-            let stderr = String::from_utf8_lossy(&out.stderr);
-            let mut s = status.lock().await;
-            s.error = Some(format_uv_sync_failure(root, out.status.code(), &stderr));
-            return;
+        drop(s);
+
+        let mut sync_cmd = tokio::process::Command::new(&uv_bin);
+        sync_cmd
+            .args([
+                "sync",
+                "--extra", "desktop",
+                "--extra", "inference-cloud",
+                "--extra", "inference-google",
+                // openjarvis_rust lives in a uv dependency group (not the published
+                // `desktop` extra) so pip installs from PyPI don't require it (#584).
+                "--group", "desktop-native",
+            ])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .current_dir(root);
+        // Avoid LD_LIBRARY_PATH leak when running inside an AppImage (#455).
+        prepare_subprocess_for_appimage(&mut sync_cmd);
+        add_cargo_bin_to_path(&mut sync_cmd);
+        let sync_output = sync_cmd.output().await;
+        match sync_output {
+            Ok(out) if !out.status.success() => {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                let mut s = status.lock().await;
+                s.error = Some(format_uv_sync_failure(root, out.status.code(), &stderr));
+                return;
+            }
+            Err(e) => {
+                let mut s = status.lock().await;
+                s.error = Some(format_uv_sync_spawn_error(root, &uv_bin, &e.to_string()));
+                return;
+            }
+            Ok(_) => {
+                let _ = std::fs::write(dependency_sync_stamp(root), b"");
+            }
         }
-        Err(e) => {
-            let mut s = status.lock().await;
-            s.error = Some(format_uv_sync_spawn_error(root, &uv_bin, &e.to_string()));
-            return;
-        }
-        Ok(_) => {} // success — fall through
     }
 
     {
@@ -1395,10 +1525,15 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         s.detail = format!("Starting API server from {}...", root.display());
     }
 
-    let mut cmd = tokio::process::Command::new(&uv_bin);
+    let python_bin = if cfg!(target_os = "windows") {
+        root.join(".venv").join("Scripts").join("python.exe")
+    } else {
+        root.join(".venv").join("bin").join("python")
+    };
+    let mut cmd = tokio::process::Command::new(&python_bin);
     let mut serve_argv: Vec<String> = vec![
-        "run".into(),
-        "jarvis".into(),
+        "-m".into(),
+        "openjarvis.cli".into(),
         "serve".into(),
         "--port".into(),
         JARVIS_PORT.to_string(),
@@ -1451,9 +1586,9 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             let mut s = status.lock().await;
             s.error = Some(format!(
                 "Could not start jarvis server: {}. \
-                 Make sure uv is installed (https://astral.sh/uv) and the OpenJarvis repo is cloned at {}",
+                 Make sure the project environment is installed at {}",
                 e,
-                root.display(),
+                python_bin.display(),
             ));
             return;
         }
@@ -1467,7 +1602,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             s.error = Some(format!(
                 "Jarvis server is running but the inference engine is not available \
                  (HTTP 503). This usually means the configured model couldn't be loaded.\n\n\
-                 Check the server logs, or run 'uv run jarvis serve --port {}{}' \
+                 Check the server logs, or run 'jarvis serve --port {}{}' \
                  from {} to see the engine error.\n\n\
                  Server response:\n{}",
                 JARVIS_PORT,
@@ -2725,14 +2860,14 @@ async fn hide_overlay() -> Result<(), String> {
 // App entry point
 // ---------------------------------------------------------------------------
 
-// Desktop builds used to register the web PWA service worker. WebView2 keeps
-// that worker between installer upgrades, so it can serve an obsolete UI even
-// when the executable contains a newer frontend. Run this migration once from
-// the native layer: it removes only service workers and CacheStorage, leaving
-// localStorage (conversations, settings and Second Brain data) untouched.
+// Desktop builds previously registered the PWA service worker. WebView2 keeps
+// that worker between installer upgrades, which can serve an obsolete UI even
+// when the executable contains a newer frontend. This migration removes only
+// service workers and CacheStorage; conversations, settings and Second Brain
+// data in localStorage remain untouched.
 const DESKTOP_WEBVIEW_CACHE_MIGRATION: &str = r#"
 void async function () {
-  const marker = 'zeusex-desktop-cache-v1.0.3';
+  const marker = 'zeusex-desktop-cache-v1.0.5-canonical-project';
   if (localStorage.getItem(marker)) return;
   localStorage.setItem(marker, '1');
 
@@ -3083,17 +3218,17 @@ mod tests {
     fn startup_installed_model_uses_existing_model_for_defaults() {
         let models = vec!["llama3.2:latest".to_string()];
         assert_eq!(
-            startup_installed_model("qwen3.5:4b", &models),
+            startup_installed_model("qwen3.5:4b", &models, true),
             Some("llama3.2:latest".to_string())
         );
     }
 
     #[test]
-    fn startup_installed_model_uses_existing_model_when_configured_model_missing() {
+    fn startup_installed_model_respects_a_missing_configured_model() {
         let models = vec!["llama3.2:latest".to_string()];
         assert_eq!(
-            startup_installed_model("qwen3.5:4b", &models),
-            Some("llama3.2:latest".to_string())
+            startup_installed_model("qwen3.5:4b", &models, false),
+            None
         );
     }
 

@@ -28,6 +28,40 @@ from openjarvis.server.models import (
 
 router = APIRouter()
 
+_FAST_LOCAL_MODELS = frozenset({"qwen2.5:3b"})
+_FAST_LOCAL_HISTORY_MESSAGES = 8
+_FAST_LOCAL_MAX_TOKENS = 512
+
+
+def _apply_fast_local_limits(request_body: ChatCompletionRequest) -> None:
+    """Keep CPU-only chat responsive without affecting advanced tool runs.
+
+    The desktop client persists full conversations and can request up to 4096
+    output tokens.  Replaying that entire history through a small Ollama model
+    on CPU makes time-to-first-token grow into minutes.  For the explicitly
+    selected fast local model, preserve system grounding plus the four most
+    recent user/assistant turns and cap ordinary chat output.  Tool-calling
+    requests retain their full context and token budget.
+    """
+    if request_body.model.lower() not in _FAST_LOCAL_MODELS or request_body.tools:
+        return
+
+    system_messages = [m for m in request_body.messages if m.role == "system"]
+    conversation = [m for m in request_body.messages if m.role != "system"]
+    request_body.messages = [
+        *system_messages,
+        *conversation[-_FAST_LOCAL_HISTORY_MESSAGES:],
+    ]
+    request_body.max_tokens = min(
+        request_body.max_tokens,
+        _FAST_LOCAL_MAX_TOKENS,
+    )
+
+
+def _should_use_direct_local(model: str, direct_stream: bool) -> bool:
+    """Use Ollama's native stream for the explicitly optimized CPU model."""
+    return direct_stream and model.lower() in _FAST_LOCAL_MODELS
+
 
 def _to_messages(chat_messages) -> list[Message]:
     """Convert Pydantic ChatMessage objects to core Message objects."""
@@ -86,7 +120,11 @@ def _ensure_identity_prompt(messages: list[Message], app_config) -> list[Message
             memory_files_config=getattr(cfg, "memory_files", None),
             system_prompt_config=getattr(cfg, "system_prompt", None),
         )
-        prompt = builder.build()
+        from openjarvis.zeusex.identity import ZEUSEX_IDENTITY
+
+        base_prompt = builder.build()
+        james_identity = ZEUSEX_IDENTITY.system_prompt("assistant")
+        prompt = f"{james_identity}\n\n{base_prompt}" if base_prompt else james_identity
     except Exception:
         logging.getLogger("openjarvis.server").debug(
             "Identity system prompt resolution failed; "
@@ -195,6 +233,10 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                 exc_info=True,
             )
 
+    # Apply the CPU-friendly profile after complexity analysis so it cannot
+    # silently raise the desktop client's output budget back into the thousands.
+    _apply_fast_local_limits(request_body)
+
     if request_body.stream:
         # When the client passes `tools`, stream the model's raw
         # OpenAI-compat function-calling decision directly from the engine
@@ -215,11 +257,26 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                 bus=getattr(request.app.state, "bus", None),
                 memory_service=getattr(request.app.state, "memory_service", None),
             )
+        direct_stream = request.headers.get("x-openjarvis-direct-stream", "").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        if agent is not None and not direct_stream:
+            from openjarvis.server.stream_bridge import create_agent_stream
+
+            return await create_agent_stream(
+                agent,
+                request.app.state.bus,
+                model,
+                request_body,
+            )
         return await _handle_stream(
             engine,
             model,
             request_body,
             complexity_info,
+            prefer_direct_local=_should_use_direct_local(model, direct_stream),
             trace_store=getattr(request.app.state, "trace_store", None),
             app_config=config,
             bus=getattr(request.app.state, "bus", None),
@@ -656,6 +713,7 @@ async def _handle_stream(
     req: ChatCompletionRequest,
     complexity_info=None,
     *,
+    prefer_direct_local: bool = False,
     trace_store=None,
     app_config=None,
     bus=None,
@@ -724,7 +782,7 @@ async def _handle_stream(
                 # when a real MultiEngine would mis-route the local model to a
                 # cloud backend — detected via isinstance so mocks are not
                 # accidentally matched.
-                _use_local_fallback = False
+                _use_local_fallback = prefer_direct_local
                 try:
                     from openjarvis.engine.multi import MultiEngine
 
@@ -1109,7 +1167,9 @@ async def server_info(request: Request):
 async def health(request: Request):
     """Health check endpoint."""
     engine = request.app.state.engine
-    healthy = engine.health()
+    # Engine probes perform synchronous HTTP I/O. Keep them off the asyncio
+    # loop so a slow Ollama probe cannot stall chat and every other route.
+    healthy = await asyncio.to_thread(engine.health)
     if not healthy:
         raise HTTPException(status_code=503, detail="Engine unhealthy")
     return {"status": "ok"}

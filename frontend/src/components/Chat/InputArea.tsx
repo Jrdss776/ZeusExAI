@@ -10,7 +10,11 @@ import { buildJamesSystemPrompt } from '../../lib/jamesPrompt';
 import {
   compactJamesConversation,
   formatJamesSkills,
+  getJamesInstantReply,
+  isJamesCapabilityQuestion,
+  isJamesGreeting,
   proposeJamesMemory,
+  requiresJamesAgent,
   selectJamesBrainNotes,
   selectJamesSkills,
 } from '../../lib/jamesIntelligence';
@@ -29,7 +33,6 @@ import type {
   TokenUsage,
   ToolCallInfo,
 } from '../../types';
-import { consumeChatDraft } from '../../lib/chatDraft';
 
 // While Deep Research is toggled on, poll connected sources for sync
 // progress so we can surface "Searching over N items — sync in progress"
@@ -94,11 +97,6 @@ export function InputArea() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    const draft = consumeChatDraft();
-    if (draft) setInput(draft);
-  }, []);
 
   const activeId = useAppStore((s) => s.activeId);
   const selectedModel = useAppStore((s) => s.selectedModel);
@@ -203,7 +201,7 @@ export function InputArea() {
     const content = (override ?? input).trim();
     if (!content || streamState.isStreaming) return;
     if (!selectedModel) {
-      toast.error('Selecione um modelo primeiro (⌘K)');
+      toast.error('Pick a model first (⌘K)');
       return;
     }
 
@@ -224,7 +222,7 @@ export function InputArea() {
 
     const memoryCandidate = proposeJamesMemory(content, userMsg.id);
     if (memoryCandidate) {
-      toast('Gambit identificou uma possível memória', {
+      toast('James identificou uma possível memória', {
         description: memoryCandidate.body,
         duration: 12_000,
         action: {
@@ -242,20 +240,51 @@ export function InputArea() {
       });
     }
 
+    const instantReply = getJamesInstantReply(content);
+    if (instantReply) {
+      addMessage(convId, {
+        id: generateId(),
+        role: 'assistant',
+        content: instantReply,
+        timestamp: Date.now(),
+        telemetry: {
+          engine: 'ollama',
+          model_id: selectedModel,
+          total_ms: 0,
+          ttft_ms: 0,
+        },
+      });
+      useAppStore.getState().addLogEntry({
+        timestamp: Date.now(),
+        level: 'info',
+        category: 'chat',
+        message: `Resposta instantânea do James: "${content.slice(0, 80)}"`,
+      });
+      return;
+    }
+
     // Build API messages before adding assistant placeholder
     const currentMessages = useAppStore.getState().messages;
-    const brainContext = selectJamesBrainNotes(loadBrainNotes(), content)
+    const greeting = isJamesGreeting(content);
+    const quickReply = greeting || isJamesCapabilityQuestion(content);
+    const brainContext = (quickReply ? [] : selectJamesBrainNotes(loadBrainNotes(), content))
       .map((note) => `- ${BRAIN_AREAS[note.area].label} / ${note.title}: ${note.body}`)
       .join('\n');
     const skills = selectJamesSkills(content);
-    const compacted = compactJamesConversation(currentMessages);
+    const useJamesAgent = requiresJamesAgent(content);
+    const compacted = compactJamesConversation(currentMessages, {
+      maxMessages: useJamesAgent ? 8 : 6,
+      maxChars: useJamesAgent ? 5_000 : 2_500,
+      maxSummaryChars: useJamesAgent ? 1_000 : 600,
+    });
     const jamesSystem = buildJamesSystemPrompt(brainContext, {
       skillsContext: formatJamesSkills(skills),
-      conversationSummary: compacted.summary,
+      conversationSummary: quickReply ? '' : compacted.summary,
+      compact: isLocalModel(selectedModel),
     });
     const apiMessages = [
       { role: 'system', content: jamesSystem },
-      ...compacted.messages,
+      ...(quickReply ? compacted.messages.slice(-1) : compacted.messages),
     ];
 
     const assistantMsg: ChatMessage = {
@@ -302,7 +331,7 @@ export function InputArea() {
       category: 'chat',
       message: deepResearch
         ? `Research: "${content.slice(0, 80)}${content.length > 80 ? '...' : ''}"`
-        : `Request: "${content.slice(0, 80)}${content.length > 80 ? '...' : ''}" → ${selectedModel}`,
+        : `Request: "${content.slice(0, 80)}${content.length > 80 ? '...' : ''}" → ${selectedModel} (${useJamesAgent ? 'agent' : 'fast'})`,
     });
 
     try {
@@ -450,12 +479,15 @@ export function InputArea() {
           messages: apiMessages,
           stream: true,
           temperature,
-          max_tokens: maxTokens,
+          max_tokens: quickReply && isLocalModel(selectedModel)
+            ? Math.min(maxTokens, greeting ? 48 : 64)
+            : maxTokens,
           ...(isLocalModel(selectedModel) ? {
             keep_alive: `${keepAliveMinutes}m`,
           } : {}),
         },
         controller.signal,
+        { directStream: !useJamesAgent },
       )) {
         const eventName = sseEvent.event;
 
@@ -661,10 +693,10 @@ export function InputArea() {
               border: `1px solid ${deepResearch ? 'var(--color-accent)' : 'var(--color-border)'}`,
               color: deepResearch ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
             }}
-            title={deepResearch ? 'Pesquisa Profunda: ativada' : 'Pesquisa Profunda: desativada'}
+            title={deepResearch ? 'Deep Research: on' : 'Deep Research: off'}
           >
             <Search size={12} />
-            Pesquisa Profunda
+            Deep Research
           </button>
         </div>
         {deepResearch && corpusSync.syncing && corpusSync.itemsSynced > 0 && (
@@ -693,7 +725,7 @@ export function InputArea() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={selectedModel ? 'Mensagem para o Gambit...' : 'Selecione um modelo primeiro (⌘K)...'}
+          placeholder={selectedModel ? 'Fale com James...' : 'Escolha um modelo primeiro (Ctrl+K)...'}
           rows={1}
           className="flex-1 bg-transparent outline-none resize-none text-sm leading-relaxed"
           style={{ color: 'var(--color-text)', maxHeight: '200px' }}
@@ -719,7 +751,7 @@ export function InputArea() {
             <button
               onClick={() => sendMessage()}
               disabled={!input.trim() || !selectedModel}
-              title={selectedModel ? 'Enviar mensagem' : 'Selecione um modelo primeiro (⌘K)'}
+              title={selectedModel ? 'Send message' : 'Pick a model first (⌘K)'}
               className="p-2 rounded-xl transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default"
               style={{
                 background: input.trim() ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
@@ -733,8 +765,8 @@ export function InputArea() {
       </div>
       <div className="flex items-center justify-center mt-2 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
         <span>
-          <kbd className="font-mono">Enter</kbd> para enviar &middot;{' '}
-          <kbd className="font-mono">Shift+Enter</kbd> para nova linha
+          <kbd className="font-mono">Enter</kbd> to send &middot;{' '}
+          <kbd className="font-mono">Shift+Enter</kbd> for new line
         </span>
       </div>
     </div>

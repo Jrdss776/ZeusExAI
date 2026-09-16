@@ -28,6 +28,9 @@ modes:
   vision:
     label: "Visão"
     purpose: "análise de imagens, tela, erros e produtos"
+  design:
+    label: "Design"
+    purpose: "briefings, direção de arte, identidade visual e peças gráficas"
   sales:
     label: "Vendas"
     purpose: "Shopee, Mercado Livre, produtos, margem e conteúdo comercial"

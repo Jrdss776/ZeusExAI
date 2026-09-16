@@ -73,14 +73,26 @@ def _is_control_token_only_args(raw_args: Any) -> bool:
 def _default_num_ctx() -> int:
     """Default context window (tokens). Override with ``JARVIS_NUM_CTX``.
 
-    Raised above Ollama's 4k default so an image (which costs many tokens)
-    plus a real conversation fit. 16k is comfortable for small models on a
-    typical consumer GPU.
+    Keep the default at 4k so small local models remain responsive on CPU-only
+    machines. Larger multimodal or GPU-backed sessions can opt in through the
+    environment variable without making every desktop chat reserve a 16k KV
+    cache.
     """
     try:
-        return int(os.environ.get("JARVIS_NUM_CTX", "16384"))
+        return int(os.environ.get("JARVIS_NUM_CTX", "4096"))
     except ValueError:
-        return 16384
+        return 4096
+
+
+def _default_keep_alive() -> str:
+    """How long Ollama keeps a model resident after the latest request.
+
+    Ollama resets this timer on every chat request, so an actively-used model
+    stays hot while an idle model is released without a polling task in this
+    process.  The next request transparently loads it again.
+    """
+    value = os.environ.get("JARVIS_OLLAMA_KEEP_ALIVE", "10m").strip()
+    return value or "10m"
 
 
 @EngineRegistry.register("ollama")
@@ -100,6 +112,7 @@ class OllamaEngine(AsyncHTTPEngineMixin, InferenceEngine):
         host: str | None = None,
         *,
         timeout: float = 1800.0,
+        keep_alive: str | int | None = None,
     ) -> None:
         # Priority: explicit host (from config.toml) > OLLAMA_HOST env var > default
         if host is None:
@@ -110,6 +123,9 @@ class OllamaEngine(AsyncHTTPEngineMixin, InferenceEngine):
         # wedged token read is bounded by ``timeout`` instead of hanging the
         # single event loop for the httpx default.
         self._timeout = timeout
+        self._keep_alive = (
+            keep_alive if keep_alive is not None else _default_keep_alive()
+        )
         # Injection seam for tests: an ``httpx.MockTransport`` swapped in here drives
         # the async stream path with no real Ollama server. ``None`` in production so
         # httpx uses its default networking.
@@ -142,6 +158,7 @@ class OllamaEngine(AsyncHTTPEngineMixin, InferenceEngine):
             "model": model,
             "messages": msg_dicts,
             "stream": False,
+            "keep_alive": kwargs.get("keep_alive", self._keep_alive),
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
@@ -266,6 +283,7 @@ class OllamaEngine(AsyncHTTPEngineMixin, InferenceEngine):
             "model": model,
             "messages": messages_to_dicts(messages),
             "stream": True,
+            "keep_alive": kwargs.get("keep_alive", self._keep_alive),
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
@@ -367,6 +385,7 @@ class OllamaEngine(AsyncHTTPEngineMixin, InferenceEngine):
             "model": model,
             "messages": msg_dicts,
             "stream": True,
+            "keep_alive": kwargs.get("keep_alive", self._keep_alive),
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,

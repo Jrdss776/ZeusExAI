@@ -4,6 +4,7 @@ import {
   getSetupStatus,
   fetchModels,
   fetchRecommendedModel,
+  isLocalModel,
   type SetupStatus,
 } from '../lib/api';
 import { useAppStore } from '../lib/store';
@@ -96,7 +97,10 @@ export function SetupScreen({ onReady }: { onReady: () => void }) {
         const recommended = rec.model && models.some((m) => m.id === rec.model)
           ? rec.model
           : models[0]?.id || '';
-        if (recommended && !store.selectedModel) {
+        const shouldApplyConfiguredLocalModel =
+          rec.reason === 'Configured active model' &&
+          (!store.selectedModel || isLocalModel(store.selectedModel));
+        if (recommended && (!store.selectedModel || shouldApplyConfiguredLocalModel)) {
           store.setSelectedModel(recommended);
         }
       } catch {

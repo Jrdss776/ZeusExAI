@@ -10,7 +10,7 @@ import {
   PanelLeft,
   Cpu,
   Rocket,
-  Bot,
+  CalendarDays,
   Sun,
   Moon,
   Monitor,
@@ -18,8 +18,8 @@ import {
   ScrollText,
   Database,
   ShieldCheck,
-  Calculator,
-  CalendarHeart,
+  Sparkles,
+  Store,
 } from 'lucide-react';
 import { ConversationList } from './ConversationList';
 import { useAppStore } from '../../lib/store';
@@ -48,24 +48,24 @@ export function Sidebar() {
   const handleNewChat = () => {
     // Don't create a new chat if the current one is empty
     if (messages.length === 0) {
-      navigate('/');
+      navigate('/chat');
       return;
     }
     createConversation(selectedModel);
-    navigate('/');
+    navigate('/chat');
   };
 
   const navItems = [
-    { path: '/', icon: MessageSquare, label: 'Chat' },
-    { path: '/dashboard', icon: BarChart3, label: 'Gambit' },
-    { path: '/vampira', icon: CalendarHeart, label: 'Vampira' },
-    { path: '/pricing', icon: Calculator, label: 'Precificação' },
-    { path: '/data-sources', icon: Database, label: 'Fontes de dados' },
-    { path: '/agents', icon: Bot, label: 'Agentes' },
-    { path: '/governance', icon: ShieldCheck, label: 'Governança' },
-    { path: '/logs', icon: ScrollText, label: 'Registros' },
-    { path: '/settings', icon: Settings, label: 'Configurações' },
-    { path: '/get-started', icon: Rocket, label: 'Primeiros passos' },
+    { path: '/dashboard', icon: BarChart3, label: 'Início' },
+    { path: '/chat', icon: MessageSquare, label: 'James' },
+    { path: '/vampira', icon: Sparkles, label: 'Vampira' },
+    { path: '/data-sources', icon: Database, label: 'Data Sources' },
+    { path: '/commitments', icon: CalendarDays, label: 'Compromissos' },
+    { path: '/commercial', icon: Store, label: 'Comercial' },
+    { path: '/governance', icon: ShieldCheck, label: 'Governance' },
+    { path: '/logs', icon: ScrollText, label: 'Logs' },
+    { path: '/settings', icon: Settings, label: 'Settings' },
+    { path: '/get-started', icon: Rocket, label: 'Get Started' },
   ];
 
   return (
@@ -108,14 +108,6 @@ export function Sidebar() {
             >
               <PanelLeftClose size={18} />
             </button>
-            <div className="min-w-0 flex-1 px-2">
-              <p className="truncate text-xs font-semibold tracking-[0.24em]" style={{ color: 'var(--color-accent)' }}>
-                GAMBIT
-              </p>
-              <p className="truncate text-[9px] tracking-[0.12em]" style={{ color: 'var(--color-text-tertiary)' }}>
-                ZEUSEXAI CORE
-              </p>
-            </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => updateSettings({ theme: nextTheme })}
@@ -123,7 +115,7 @@ export function Sidebar() {
                 style={{ color: 'var(--color-text-secondary)' }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg-tertiary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                title={`Tema: ${settings.theme} (clique para ${nextTheme})`}
+                title={`Theme: ${settings.theme} (click for ${nextTheme})`}
               >
                 <ThemeIcon size={16} />
               </button>
@@ -133,7 +125,7 @@ export function Sidebar() {
                 style={{ color: 'var(--color-text-secondary)' }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg-tertiary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                title="Nova conversa"
+                title="New chat"
               >
                 <Plus size={18} />
               </button>
@@ -163,12 +155,12 @@ export function Sidebar() {
                 style={{ color: deepResearch ? 'var(--color-accent)' : 'var(--color-text)' }}
               >
                 {deepResearch
-                  ? 'Pesquisa Profunda'
-                  : selectedModel || serverInfo?.model || 'Selecionar modelo'}
+                  ? 'Deep Research'
+                  : selectedModel || serverInfo?.model || 'Select model'}
               </span>
               {modelLoading && (
                 <span className="text-[10px] block text-left" style={{ color: 'var(--color-accent)' }}>
-                  Carregando modelo...
+                  Loading model...
                 </span>
               )}
             </div>
@@ -191,7 +183,7 @@ export function Sidebar() {
               <Search size={14} style={{ color: 'var(--color-text-tertiary)' }} />
               <input
                 type="text"
-                placeholder="Pesquisar conversas..."
+                placeholder="Search chats..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 bg-transparent outline-none text-sm"

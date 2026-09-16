@@ -128,7 +128,7 @@ Vision runs in **direct mode** only. If you also pass `--agent`, the image is
 ignored and a note is printed — re-run with `--agent ""` to force direct mode.
 
 The Ollama context window can be tuned for large images or long prompts with
-the `JARVIS_NUM_CTX` environment variable (default `16384`):
+the `JARVIS_NUM_CTX` environment variable (default `4096`):
 
 ```bash
 JARVIS_NUM_CTX=8192 jarvis ask --screen "What's on my screen?"

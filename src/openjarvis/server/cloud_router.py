@@ -295,6 +295,8 @@ async def stream_local(
     keep_alive: str | int | None = None,
 ) -> AsyncIterator[str]:
     """Stream tokens directly from Ollama, bypassing the engine system."""
+    from openjarvis.engine.ollama import _default_num_ctx
+
     payload = {
         "model": model,
         "messages": _to_openai_msgs(messages),
@@ -305,6 +307,7 @@ async def stream_local(
         "options": {
             "temperature": temperature,
             "num_predict": max_tokens,
+            "num_ctx": _default_num_ctx(),
         },
     }
     if keep_alive is not None:

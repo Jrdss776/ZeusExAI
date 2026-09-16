@@ -118,6 +118,11 @@ except ImportError:
     pass
 
 try:
+    import openjarvis.tools.pc_control  # noqa: F401
+except ImportError:
+    pass
+
+try:
     import openjarvis.tools.image_tool  # noqa: F401
 except ImportError:
     pass

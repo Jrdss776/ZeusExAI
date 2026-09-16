@@ -17,7 +17,9 @@ import {
   Search,
   Brain,
   RefreshCw,
+  Bot,
 } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import { useAppStore, type ThemeMode } from '../lib/store';
 import {
   checkHealth,
@@ -207,6 +209,7 @@ const themeOptions: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
 ];
 
 export function SettingsPage() {
+  const navigate = useNavigate();
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const conversations = useAppStore((s) => s.conversations);
@@ -543,6 +546,15 @@ export function SettingsPage() {
           <Section title="Tools">
             <SettingRow label="Web Search" description="Tavily key for web search tool">
               <ApiKeyInput keyName="TAVILY_API_KEY" placeholder="tvly-..." />
+            </SettingRow>
+            <SettingRow label="Agentes internos" description="Administrar agentes, canais e automações que trabalham nos bastidores">
+              <button
+                onClick={() => navigate('/agents')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+              >
+                <Bot size={13} /> Administrar agentes
+              </button>
             </SettingRow>
           </Section>
 

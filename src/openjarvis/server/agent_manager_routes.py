@@ -69,99 +69,54 @@ _BROWSER_SUB_TOOLS = {
 }
 
 
-def _resolve_memory_backend(config: Any) -> Any:
-    """Instantiate the configured memory backend, or None if unavailable.
-
-    Mirrors serve.py's setup so an agent tick that runs through the server
-    can actually use its memory_* tools. Returns None (so the tools degrade
-    gracefully) when memory context is disabled or the backend can't load.
-    """
-    if config is None or not getattr(config.agent, "context_from_memory", False):
-        return None
-    try:
-        import openjarvis.tools.storage  # noqa: F401
-        from openjarvis.core.registry import MemoryRegistry
-
-        key = config.memory.default_backend
-        if MemoryRegistry.contains(key):
-            return MemoryRegistry.create(key, db_path=config.memory.db_path)
-    except Exception:
-        logger.debug("Lightweight system: memory backend init failed", exc_info=True)
-    return None
-
-
 class _LightweightSystem:
-    """Minimal system facade for the executor — avoids rebuilding the
-    full JarvisSystem (which picks a random model from Ollama)."""
+    """Minimal facade that shares the server's active runtime resources."""
 
-    def __init__(self, engine: Any, model: str, config: Any = None):
+    def __init__(
+        self,
+        engine: Any,
+        model: str,
+        config: Any = None,
+        memory_backend: Any = None,
+    ):
         self.engine = engine
         self.model = model
         self.config = config
-        # Wire the configured memory backend so an agent's memory_store /
-        # memory_retrieve tools work when the tick runs through the server.
-        # The executor injects system.memory_backend into those tools; this
-        # facade previously left it None, so they reported "No memory backend
-        # configured" even though the backend was configured and active.
-        self.memory_backend = _resolve_memory_backend(config)
+        self.memory_backend = memory_backend
 
 
 def _make_lightweight_system(
     engine: Any,
     model: str,
     config: Any = None,
+    memory_backend: Any = None,
 ) -> _LightweightSystem:
-    """Build a minimal system with a fresh inference engine.
+    """Expose James' already-running engine to a managed agent.
 
-    The server's ``app.state.engine`` is heavily wrapped
-    (MultiEngine -> InstrumentedEngine -> GuardrailsEngine) and can
-    return empty content from background threads. Create a fresh
-    engine directly (no health checks or model discovery that
-    could interfere with in-flight requests).
+    Managed agents are part of the same server process. Reusing the active
+    engine keeps provider selection, credentials, telemetry and model routing
+    identical while avoiding a second SDK client or local model process.
     """
-    try:
-        from openjarvis.engine._discovery import get_engine
+    return _LightweightSystem(engine, model, config, memory_backend)
 
-        cfg = config
-        if cfg is None:
-            from openjarvis.core.config import load_config
 
-            cfg = load_config()
+def _managed_agent_model(agent: Dict[str, Any], fallback: str = "") -> str:
+    """Return the model pinned to a managed agent, then the server fallback.
 
-        pref = cfg.intelligence.preferred_engine
-        key = pref or cfg.engine.default
-        # Validate the engine against the exact model already selected by the
-        # server.  Without this, discovery can choose a healthy cloud engine
-        # that cannot serve the local James model, later surfacing the
-        # misleading "OpenAI client not available" error.
-        resolved = get_engine(cfg, key, model=model or None)
+    The engine and model must be resolved as a pair. Building an engine for
+    the server model and later invoking it with an agent-specific local model
+    can route that local model through a cloud provider.
+    """
+    config = agent.get("config") or {}
+    if isinstance(config, dict):
+        from openjarvis.agents.vampira import is_vampira_productivity_agent
 
-        if resolved is not None:
-            plain_engine = resolved[1]
-        else:
-            from openjarvis.engine.ollama import OllamaEngine
-
-            host = cfg.engine.ollama.host if cfg else ""
-            plain_engine = OllamaEngine(host=host) if host else OllamaEngine()
-
-        # Wrap with InstrumentedEngine so agent ticks are recorded
-        # in telemetry (FLOPs, energy, cost savings).
-        try:
-            from openjarvis.core.events import get_event_bus
-            from openjarvis.telemetry.instrumented_engine import (
-                InstrumentedEngine,
-            )
-
-            plain_engine = InstrumentedEngine(
-                plain_engine,
-                get_event_bus(),
-            )
-        except Exception:
-            pass  # telemetry is optional
-        return _LightweightSystem(plain_engine, model, cfg)
-    except Exception:
-        pass
-    return _LightweightSystem(engine, model, config)
+        if config.get("inherit_active_model") is True or is_vampira_productivity_agent(agent):
+            return fallback
+        model = config.get("model")
+        if isinstance(model, str) and model.strip():
+            return model.strip()
+    return fallback
 
 
 def _parse_param_count(model_name: str) -> float:
@@ -178,14 +133,31 @@ _CLOUD_PREFIXES = ("gpt-", "claude-", "gemini-", "o1-", "o3-", "o4-")
 
 def _pick_recommended_model(
     model_ids: list[str],
+    preferred_model: str = "",
 ) -> dict[str, str]:
-    """Pick the second-largest local model from a list."""
+    """Pick the configured model, or fall back to the second-largest local one."""
     local = [m for m in model_ids if not any(m.startswith(p) for p in _CLOUD_PREFIXES)]
     if not local:
         return {
             "model": model_ids[0] if model_ids else "",
             "reason": "Only model available",
         }
+    preferred = preferred_model.strip()
+    if preferred:
+        preferred_base = preferred.removesuffix(":latest")
+        configured = next(
+            (
+                model
+                for model in local
+                if model == preferred or model.removesuffix(":latest") == preferred_base
+            ),
+            None,
+        )
+        if configured is not None:
+            return {
+                "model": configured,
+                "reason": "Configured active model",
+            }
     sized = sorted(local, key=_parse_param_count, reverse=True)
     if len(sized) == 1:
         return {"model": sized[0], "reason": "Only local model available"}
@@ -836,12 +808,13 @@ async def _stream_managed_agent(
     # and only then the legacy engine._model attr. OllamaEngine takes the
     # model per-call and exposes no _model attr, so without the app_state
     # fallback this resolved to "" and Ollama 400'd on an empty model.
-    model = (
-        config.get("model")
-        or getattr(app_state, "model", None)
-        or getattr(engine, "_model", "")
+    model = _managed_agent_model(
+        agent_record,
+        getattr(app_state, "model", None) or getattr(engine, "_model", ""),
     )
-    system_prompt = config.get("system_prompt")
+    from openjarvis.agents.vampira import runtime_system_prompt
+
+    system_prompt = runtime_system_prompt(agent_record)
     temperature = config.get("temperature", 0.7)
     max_tokens = config.get("max_tokens", 1024)
     max_turns = config.get("max_turns", 10)
@@ -1170,7 +1143,9 @@ async def _stream_managed_agent(
     # Template stores tool names as strings; convert to OpenAI function specs
     # so the engine can actually bind them to the model.
     stream_kwargs: Dict[str, Any] = {}
-    resolved_tools = _resolve_tool_specs(config.get("tools"))
+    from openjarvis.agents.vampira import runtime_tools
+
+    resolved_tools = _resolve_tool_specs(runtime_tools(agent_record))
     if resolved_tools:
         stream_kwargs["tools"] = resolved_tools
 
@@ -1529,6 +1504,99 @@ async def _stream_managed_agent(
     )
 
 
+def start_telegram_channel(
+    app,
+    manager: AgentManager,
+    agent_id: str,
+    bot_token: str,
+    allowed_chat_ids: str,
+):
+    """Start Telegram polling for a persisted managed-agent binding."""
+    import time as _time
+
+    from openjarvis.agents.executor import AgentExecutor
+    from openjarvis.channels.telegram import TelegramChannel
+    from openjarvis.core.events import get_event_bus
+
+    old_telegram = getattr(app.state, "telegram_channel", None)
+    if old_telegram is not None:
+        old_telegram.disconnect()
+
+    tg_channel = TelegramChannel(
+        bot_token=bot_token,
+        allowed_chat_ids=allowed_chat_ids,
+    )
+
+    def _handle_telegram_message(channel_message):
+        if channel_message.content.strip() == "/start":
+            agent_record = manager.get_agent(agent_id)
+            if agent_record and agent_record.get("agent_type") == "vampira":
+                tg_channel.send(
+                    channel_message.conversation_id,
+                    "Olá, Sr. Jair! Sou a Vampira.\n\n"
+                    "Posso ajudar com e-mails, agenda e tarefas. "
+                    "Não consultei seus dados nesta saudação.\n\n"
+                    "Você pode pedir:\n"
+                    "• Quantos e-mails tenho?\n"
+                    "• Consulte minha agenda de hoje.\n"
+                    "• Liste minhas tarefas pendentes.",
+                    conversation_id=channel_message.message_id,
+                )
+                return
+        started_at = _time.time()
+        manager.send_message(
+            agent_id,
+            channel_message.content,
+            mode="immediate",
+        )
+        agent_record = manager.get_agent(agent_id)
+        if agent_record is None:
+            return
+        engine = getattr(app.state, "engine", None)
+        model = _managed_agent_model(
+            agent_record,
+            getattr(app.state, "model", ""),
+        )
+        executor = AgentExecutor(
+            manager=manager,
+            event_bus=get_event_bus(),
+            trace_store=getattr(app.state, "trace_store", None),
+        )
+        executor.set_system(
+            _make_lightweight_system(
+                engine,
+                model,
+                getattr(app.state, "config", None),
+                getattr(app.state, "memory_backend", None),
+            )
+        )
+        executor.execute_tick(agent_id)
+        replies = [
+            item
+            for item in manager.list_messages(agent_id, limit=20)
+            if item.get("direction") == "agent_to_user"
+            and float(item.get("created_at", 0)) >= started_at
+        ]
+        if replies:
+            tg_channel.send(
+                channel_message.conversation_id,
+                str(replies[0].get("content") or ""),
+                conversation_id=channel_message.message_id,
+            )
+
+    tg_channel.on_message(_handle_telegram_message)
+    tg_channel.connect()
+    app.state.telegram_channel = tg_channel
+    bridge = getattr(app.state, "channel_bridge", None)
+    if bridge and hasattr(bridge, "_channels"):
+        bridge._channels["telegram"] = tg_channel
+    logger.info(
+        "Telegram channel connected for allowed chats: %s",
+        allowed_chat_ids,
+    )
+    return tg_channel
+
+
 def create_agent_manager_router(
     manager: AgentManager,
 ) -> Tuple[APIRouter, APIRouter, APIRouter, APIRouter, APIRouter]:
@@ -1539,6 +1607,15 @@ def create_agent_manager_router(
     """
     agents_router = APIRouter(prefix="/v1/managed-agents", tags=["managed-agents"])
     templates_router = APIRouter(prefix="/v1/templates", tags=["templates"])
+
+    # Keep legacy Vampira records aligned with the current server policy.
+    # This is idempotent and runs independently of which frontend page opens.
+    from openjarvis.agents.vampira import migrate_vampira_agent
+
+    try:
+        migrate_vampira_agent(manager)
+    except Exception as exc:
+        logger.warning("Vampira policy migration skipped (%s)", type(exc).__name__)
 
     # ── Agent lifecycle ──────────────────────────────────────
 
@@ -1553,8 +1630,17 @@ def create_agent_manager_router(
                 req.template_id, req.name, overrides=req.config
             )
         else:
+            name = req.name
+            agent_type = req.agent_type
+            config = dict(req.config or {})
+            if agent_type == "vampira" or name == "Vampira":
+                from openjarvis.agents.vampira import canonical_vampira_config
+
+                name = "Vampira"
+                agent_type = "vampira"
+                config = canonical_vampira_config(config)
             agent = manager.create_agent(
-                name=req.name, agent_type=req.agent_type, config=req.config
+                name=name, agent_type=agent_type, config=config
             )
 
         # Register with scheduler if cron/interval
@@ -1574,7 +1660,8 @@ def create_agent_manager_router(
 
     @agents_router.patch("/{agent_id}")
     async def update_agent(agent_id: str, req: UpdateAgentRequest):
-        if not manager.get_agent(agent_id):
+        existing = manager.get_agent(agent_id)
+        if not existing:
             raise HTTPException(status_code=404, detail="Agent not found")
         kwargs: Dict[str, Any] = {}
         if req.name is not None:
@@ -1583,6 +1670,23 @@ def create_agent_manager_router(
             kwargs["agent_type"] = req.agent_type
         if req.config is not None:
             kwargs["config"] = req.config
+        target_name = req.name if req.name is not None else existing["name"]
+        target_type = (
+            req.agent_type if req.agent_type is not None else existing["agent_type"]
+        )
+        if target_type == "vampira" or target_name == "Vampira":
+            from openjarvis.agents.vampira import canonical_vampira_config
+
+            merged_config = dict(existing.get("config") or {})
+            if req.config is not None:
+                merged_config.update(req.config)
+            kwargs.update(
+                {
+                    "name": "Vampira",
+                    "agent_type": "vampira",
+                    "config": canonical_vampira_config(merged_config),
+                }
+            )
         return manager.update_agent(agent_id, **kwargs)
 
     @agents_router.delete("/{agent_id}")
@@ -1643,10 +1747,12 @@ def create_agent_manager_router(
                     event_bus=get_event_bus(),
                     trace_store=_ts,
                 )
+                agent_model = _managed_agent_model(agent, server_model)
                 system = _make_lightweight_system(
                     server_engine,
-                    server_model,
+                    agent_model,
                     server_config,
+                    getattr(request.app.state, "memory_backend", None),
                 )
                 executor.set_system(system)
                 # The route handler above already called start_tick() to
@@ -1734,10 +1840,55 @@ def create_agent_manager_router(
     ):
         if not manager.get_agent(agent_id):
             raise HTTPException(status_code=404, detail="Agent not found")
+
+        binding_config = dict(req.config or {})
+        telegram_token = ""
+        if req.channel_type == "telegram":
+            # Persist the secret in the credential store, never in the
+            # channel binding JSON that is returned to the frontend.
+            telegram_token = str(binding_config.pop("bot_token", "")).strip()
+            if telegram_token:
+                from openjarvis.core.credentials import save_credential
+
+                save_credential("telegram", "TELEGRAM_BOT_TOKEN", telegram_token)
+            else:
+                from openjarvis.core.credentials import get_tool_credential
+
+                telegram_token = get_tool_credential(
+                    "telegram",
+                    "TELEGRAM_BOT_TOKEN",
+                ) or ""
+
+            allowed_chat_ids = str(
+                binding_config.get("allowed_chat_ids")
+                or binding_config.get("chat_id")
+                or ""
+            ).strip()
+            if not telegram_token:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Telegram bot token is required",
+                )
+            if not allowed_chat_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail="At least one allowed Telegram chat ID is required",
+                )
+            chat_ids = [item.strip() for item in allowed_chat_ids.split(",")]
+            if any(not item.lstrip("-").isdigit() for item in chat_ids):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Telegram chat IDs must be numeric (for groups they "
+                        "usually start with -100); a group name is not valid"
+                    ),
+                )
+            binding_config = {"allowed_chat_ids": allowed_chat_ids}
+
         binding = manager.bind_channel(
             agent_id,
             channel_type=req.channel_type,
-            config=req.config,
+            config=binding_config,
             routing_mode=req.routing_mode,
         )
 
@@ -1871,6 +2022,24 @@ def create_agent_manager_router(
                 except Exception as exc:
                     logger.warning("Failed to init SendBlue channel: %s", exc)
 
+        # Start Telegram long polling. Incoming messages are accepted only
+        # from the explicit allow-list and processed by the bound agent.
+        if req.channel_type == "telegram":
+            try:
+                start_telegram_channel(
+                    request.app,
+                    manager,
+                    agent_id,
+                    telegram_token,
+                    str(binding_config["allowed_chat_ids"]),
+                )
+            except Exception as exc:
+                manager.unbind_channel(binding["id"])
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Failed to initialize Telegram: {exc}",
+                ) from exc
+
         # Start Slack via slack-bolt Socket Mode
         if req.channel_type == "slack":
             config = req.config or {}
@@ -1940,6 +2109,15 @@ def create_agent_manager_router(
                     )
 
                     stop_slack_daemon()
+                elif ch_type == "telegram":
+                    telegram_channel = getattr(
+                        request.app.state,
+                        "telegram_channel",
+                        None,
+                    )
+                    if telegram_channel is not None:
+                        telegram_channel.disconnect()
+                        request.app.state.telegram_channel = None
         except Exception:
             pass
         manager.unbind_channel(binding_id)
@@ -1998,10 +2176,12 @@ def create_agent_manager_router(
                         event_bus=get_event_bus(),
                         trace_store=_ts2,
                     )
+                    agent_model = _managed_agent_model(agent_record, _srv_model)
                     system = _make_lightweight_system(
                         _srv_engine,
-                        _srv_model,
+                        agent_model,
                         _srv_config,
+                        getattr(request.app.state, "memory_backend", None),
                     )
                     executor.set_system(system)
                     logger.info(
@@ -2203,7 +2383,8 @@ def create_agent_manager_router(
             models = engine.list_models()
         except Exception:
             models = []
-        return _pick_recommended_model(models)
+        configured_model = str(getattr(request.app.state, "model", "") or "")
+        return _pick_recommended_model(models, configured_model)
 
     # ── Tools & credentials ──────────────────────────────────
 

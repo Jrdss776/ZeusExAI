@@ -12,6 +12,11 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from openjarvis.core.events import EventBus, EventType  # noqa: E402
 from openjarvis.server.app import create_app  # noqa: E402
+from openjarvis.server.models import ChatCompletionRequest, ChatMessage  # noqa: E402
+from openjarvis.server.routes import (  # noqa: E402
+    _apply_fast_local_limits,
+    _should_use_direct_local,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -82,6 +87,51 @@ def client_with_agent():
 # ---------------------------------------------------------------------------
 # Chat completions tests
 # ---------------------------------------------------------------------------
+
+
+def test_fast_local_profile_caps_output_and_keeps_recent_history():
+    messages = [ChatMessage(role="system", content="James identity")]
+    messages.extend(
+        ChatMessage(
+            role="user" if index % 2 == 0 else "assistant",
+            content=f"message-{index}",
+        )
+        for index in range(12)
+    )
+    request = ChatCompletionRequest(
+        model="qwen2.5:3b",
+        messages=messages,
+        max_tokens=4096,
+    )
+
+    _apply_fast_local_limits(request)
+
+    assert request.max_tokens == 512
+    assert request.messages[0].content == "James identity"
+    assert [m.content for m in request.messages[1:]] == [
+        f"message-{index}" for index in range(4, 12)
+    ]
+
+
+def test_fast_local_profile_does_not_limit_tool_requests():
+    messages = [ChatMessage(role="user", content=f"message-{i}") for i in range(12)]
+    request = ChatCompletionRequest(
+        model="qwen2.5:3b",
+        messages=messages,
+        max_tokens=4096,
+        tools=[{"type": "function", "function": {"name": "search"}}],
+    )
+
+    _apply_fast_local_limits(request)
+
+    assert request.max_tokens == 4096
+    assert len(request.messages) == 12
+
+
+def test_direct_desktop_stream_uses_native_ollama_for_fast_cpu_model():
+    assert _should_use_direct_local("qwen2.5:3b", True) is True
+    assert _should_use_direct_local("qwen2.5:3b", False) is False
+    assert _should_use_direct_local("qwen3.5:4b", True) is False
 
 
 class _SpyMemoryService:

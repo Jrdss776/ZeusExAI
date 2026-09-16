@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import socket
 import sys
 
 import click
@@ -23,6 +24,20 @@ from openjarvis.intelligence import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _bind_address_available(host: str, port: int) -> tuple[bool, str]:
+    """Check the server socket before any background services are created."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        sock.bind((host, port))
+        return True, ""
+    except OSError as exc:
+        return False, str(exc)
+    finally:
+        sock.close()
 
 
 def _unique_model_ids(model_ids: list[str]) -> list[str]:
@@ -127,6 +142,18 @@ def serve(
     # Resolve host/port from CLI args or config
     bind_host = host or config.server.host
     bind_port = port or config.server.port
+
+    # Fail before engine discovery, memory extraction, schedulers or channel
+    # polling.  Besides making the error immediate, this prevents a duplicate
+    # `jarvis serve` from doing background work while it waits to fail inside
+    # uvicorn's final bind step.
+    available, bind_error = _bind_address_available(bind_host, bind_port)
+    if not available:
+        console.print(
+            f"[yellow]OpenJarvis is already running (or port {bind_port} is in "
+            f"use): {bind_error}[/yellow]"
+        )
+        sys.exit(1)
 
     # Set up engine
     register_builtin_models()
@@ -296,6 +323,22 @@ def serve(
                     from openjarvis.tools._stubs import BaseTool
 
                     _DEFAULT_TOOLS = {"think", "calculator", "web_search"}
+                    if agent_key == "james_master":
+                        # Ordinary desktop chat stays on the direct fast path.
+                        # Requests routed to the agent receive safe inspection,
+                        # coding and approval-queue capabilities.
+                        _DEFAULT_TOOLS.update(
+                            {
+                                "code_interpreter",
+                                "file_read",
+                                "folder_organizer_preview",
+                                "git_diff",
+                                "git_status",
+                                "pc_status",
+                                "process_list",
+                                "queue_action",
+                            }
+                        )
                     configured = config.agent.tools
                     if configured:
                         if isinstance(configured, list):
@@ -597,20 +640,26 @@ def serve(
             )
             executor.set_system(system)
 
-            agent_scheduler = AgentScheduler(
+            candidate_scheduler = AgentScheduler(
                 manager=agent_manager,
                 executor=executor,
                 event_bus=bus,
             )
+            scheduled_count = 0
             for ag in agent_manager.list_agents():
                 sched_type = ag.get("config", {}).get("schedule_type", "manual")
                 if sched_type in ("cron", "interval") and ag["status"] not in (
                     "archived",
                     "error",
                 ):
-                    agent_scheduler.register_agent(ag["id"])
-            agent_scheduler.start()
-            console.print("  Scheduler: [cyan]active[/cyan]")
+                    candidate_scheduler.register_agent(ag["id"])
+                    scheduled_count += 1
+            if scheduled_count:
+                candidate_scheduler.start()
+                agent_scheduler = candidate_scheduler
+                console.print("  Scheduler: [cyan]active[/cyan]")
+            else:
+                logger.debug("Agent scheduler idle: no scheduled agents")
         except Exception as exc:
             logger.debug("Agent scheduler init failed: %s", exc)
 

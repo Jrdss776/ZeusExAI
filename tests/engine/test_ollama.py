@@ -330,6 +330,52 @@ class TestOllamaStreamIsAsyncAndBounded:
     error. Uses httpx.MockTransport directly, so it runs without respx."""
 
     @pytest.mark.asyncio
+    async def test_all_chat_paths_refresh_model_idle_timer(self) -> None:
+        payloads: list[dict] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            payload = json.loads(request.content)
+            payloads.append(payload)
+            if payload["stream"]:
+                body = json.dumps(
+                    {"message": {"content": "ok"}, "done": True}
+                ) + "\n"
+                return httpx.Response(200, text=body)
+            return httpx.Response(
+                200,
+                json={"message": {"content": "ok"}, "model": payload["model"]},
+            )
+
+        transport = httpx.MockTransport(handler)
+        engine = OllamaEngine(
+            host="http://localhost:11434",
+            keep_alive="7m",
+        )
+        engine._client.close()
+        engine._client = httpx.Client(
+            base_url="http://localhost:11434",
+            transport=transport,
+        )
+        engine._async_transport = transport
+        messages = [Message(role=Role.USER, content="Hi")]
+
+        engine.generate(messages, model="qwen3.5:9b")
+        _ = [token async for token in engine.stream(messages, model="qwen3.5:9b")]
+        _ = [chunk async for chunk in engine.stream_full(messages, model="qwen3.5:9b")]
+
+        assert len(payloads) == 3
+        assert all(payload["keep_alive"] == "7m" for payload in payloads)
+
+    def test_keep_alive_defaults_to_ten_minutes_and_is_configurable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("JARVIS_OLLAMA_KEEP_ALIVE", raising=False)
+        assert OllamaEngine()._keep_alive == "10m"
+
+        monkeypatch.setenv("JARVIS_OLLAMA_KEEP_ALIVE", "25m")
+        assert OllamaEngine()._keep_alive == "25m"
+
+    @pytest.mark.asyncio
     async def test_stream_does_not_use_blocking_sync_client(self) -> None:
         # PIN: the old code iterated ``self._client`` (a SYNC httpx.Client) via
         # ``iter_lines`` inside this ``async def``. The async path must not touch the

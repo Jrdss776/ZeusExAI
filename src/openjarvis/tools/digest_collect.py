@@ -458,6 +458,21 @@ class DigestCollectTool(BaseTool):
                             "unread emails, unanswered iMessage threads, pending calendar invites."
                         ),
                     },
+                    "pending_tasks_only": {
+                        "type": "boolean",
+                        "description": "When true, exclude completed Google Tasks.",
+                    },
+                    "today_calendar_only": {
+                        "type": "boolean",
+                        "description": "When true, include only calendar events occurring today.",
+                    },
+                    "count_only": {
+                        "type": "boolean",
+                        "description": (
+                            "When true, return exact per-source counts in metadata "
+                            "without placing personal item content in the result."
+                        ),
+                    },
                     "seen_ids": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -477,16 +492,23 @@ class DigestCollectTool(BaseTool):
         sources: List[str] = params.get("sources", [])
         hours_back: float = params.get("hours_back", 24)
         unacted_only: bool = bool(params.get("unacted_only", False))
+        pending_tasks_only: bool = bool(params.get("pending_tasks_only", False))
+        today_calendar_only: bool = bool(params.get("today_calendar_only", False))
+        count_only: bool = bool(params.get("count_only", False))
         seen_ids: set = set(params.get("seen_ids", []))
         since = datetime.now() - timedelta(hours=hours_back)
 
         # Collect raw documents per source
         collected_docs: Dict[str, List[Document]] = {}
+        source_counts: Dict[str, int] = {}
+        source_errors: Dict[str, str] = {}
         errors: List[str] = []
 
         for source in sources:
             if not ConnectorRegistry.contains(source):
-                errors.append(f"Connector '{source}' not available")
+                error = f"Connector '{source}' not available"
+                errors.append(error)
+                source_errors[source] = error
                 continue
 
             try:
@@ -494,23 +516,43 @@ class DigestCollectTool(BaseTool):
                 connector = connector_cls()
 
                 if not connector.is_connected():
-                    errors.append(
-                        f"Connector '{source}' not connected (no credentials)"
-                    )
+                    error = f"Connector '{source}' not connected (no credentials)"
+                    errors.append(error)
+                    source_errors[source] = error
                     continue
 
                 # Cap per-source to avoid overwhelming the LLM context
                 max_per_source = 15
                 docs: List[Document] = []
+                source_count = 0
 
                 sync_kwargs: Dict[str, Any] = {"since": since}
                 if unacted_only and source == "gmail":
                     sync_kwargs["query_extra"] = "is:unread"
 
                 for d in connector.sync(**sync_kwargs):
-                    if d.doc_id not in seen_ids:
+                    if d.doc_id in seen_ids:
+                        continue
+                    if (
+                        pending_tasks_only
+                        and source == "google_tasks"
+                        and str((d.metadata or {}).get("status", "needsAction"))
+                        == "completed"
+                    ):
+                        continue
+                    if today_calendar_only and source == "gcalendar":
+                        local_now = datetime.now().astimezone()
+                        event_date = (
+                            d.timestamp.astimezone(local_now.tzinfo).date()
+                            if d.timestamp.tzinfo is not None
+                            else d.timestamp.date()
+                        )
+                        if event_date != local_now.date():
+                            continue
+                    source_count += 1
+                    if not count_only:
                         docs.append(d)
-                    if len(docs) >= max_per_source:
+                    if not count_only and len(docs) >= max_per_source:
                         break
 
                 if unacted_only and source == "imessage":
@@ -520,8 +562,11 @@ class DigestCollectTool(BaseTool):
                     docs = _filter_pending_invites(docs)
 
                 collected_docs[source] = docs
+                source_counts[source] = source_count
             except Exception as exc:
-                errors.append(f"Error fetching from '{source}': {exc}")
+                error = f"Error fetching from '{source}': {exc}"
+                errors.append(error)
+                source_errors[source] = error
 
         # Group by section and build human-readable output
         summary_parts: List[str] = []
@@ -578,6 +623,8 @@ class DigestCollectTool(BaseTool):
                 "sources_queried": sources,
                 "sources_ok": list(collected_docs.keys()),
                 "sources_failed": errors,
-                "total_items": sum(len(v) for v in collected_docs.values()),
+                "source_errors": source_errors,
+                "source_counts": source_counts,
+                "total_items": sum(source_counts.values()),
             },
         )

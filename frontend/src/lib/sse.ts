@@ -13,11 +13,20 @@ export interface ChatRequest {
 export async function* streamChat(
   request: ChatRequest,
   signal?: AbortSignal,
+  options: { directStream?: boolean } = {},
 ): AsyncGenerator<SSEEvent> {
   const base = getBase();
+  const directStream = options.directStream ?? true;
   const response = await fetch(`${base}/v1/chat/completions`, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    headers: authHeaders({
+      'Content-Type': 'application/json',
+      // The desktop already supplies James's full system prompt and memory
+      // context. Ask the server for true token streaming instead of waiting
+      // for the synchronous agent loop to finish and replaying its answer.
+      'X-OpenJarvis-Direct-Stream': directStream ? '1' : '0',
+      'X-OpenJarvis-Chat-Mode': directStream ? 'fast' : 'agent',
+    }),
     body: JSON.stringify(request),
     signal,
   });
@@ -29,6 +38,7 @@ export async function* streamChat(
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let currentEvent: string | undefined;
 
   try {
     while (true) {
@@ -39,9 +49,8 @@ export async function* streamChat(
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
 
-      let currentEvent: string | undefined;
-
-      for (const line of lines) {
+      for (const rawLine of lines) {
+        const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
         if (line.startsWith('event: ')) {
           currentEvent = line.slice(7).trim();
         } else if (line.startsWith('data: ')) {

@@ -65,6 +65,17 @@ def _decode_subject(raw: str) -> str:
         for part, enc in decoded_parts
     )
 
+def _header_text(raw: object) -> str:
+    """Return any email header value as JSON-safe text."""
+    if raw is None:
+        return ""
+    if isinstance(raw, bytes):
+        return raw.decode("utf-8", errors="replace")
+    try:
+        return str(raw)
+    except (LookupError, UnicodeError):
+        return repr(raw)
+
 
 def _extract_text_body(msg: email_lib.message.Message) -> str:
     """Extract plain-text body from an email Message object."""
